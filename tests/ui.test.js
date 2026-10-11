@@ -33,7 +33,6 @@ class El {
     this.tagName = (tag || 'div').toUpperCase();
     this.id = id || '';
     this.textContent = '';
-    this.innerHTML = '';
     this.value = '';
     this.src = '';
     this.dataset = {};
@@ -45,7 +44,17 @@ class El {
     this.scrollTop = 0;
     this.offsetWidth = 160;
     this.offsetHeight = 120;
+    this._innerHTML = '';
   }
+  // 模拟真实 DOM：写 innerHTML 之后，里面出现的 id 才查得到
+  set innerHTML(v) {
+    this._innerHTML = String(v);
+    for (const m of this._innerHTML.matchAll(/id="([\w-]+)"/g)) {
+      if (!this._owner || this._owner.has(m[1])) continue;
+      this._owner.set(m[1], new El('input', m[1]));
+    }
+  }
+  get innerHTML() { return this._innerHTML; }
   addEventListener(type, fn) {
     if (!this._listeners.has(type)) this._listeners.set(type, []);
     this._listeners.get(type).push(fn);
@@ -80,10 +89,14 @@ class El {
 function makeHost(opts = {}) {
   const nodes = new Map();
   const ensure = id => {
-    if (!nodes.has(id)) nodes.set(id, new El('div', id));
+    if (!nodes.has(id)) {
+      const el = new El('div', id);
+      el._owner = nodes;
+      nodes.set(id, el);
+    }
     return nodes.get(id);
   };
-  for (const id of ['brandLogo', 'status', 'tags', 'list', 'spacer', 'menu', 'toast']) ensure(id);
+  for (const id of ['status', 'tags', 'list', 'spacer', 'menu', 'toast']) ensure(id);
 
   const appended = [];   // 记录被加到 spacer 的行
   const spacer = nodes.get('spacer');
@@ -97,19 +110,10 @@ function makeHost(opts = {}) {
   spacer.querySelectorAll = () => [];
 
   const documentStub = {
-    getElementById: id => {
-      // 菜单里的内联输入框是靠 innerHTML 插进去的；桩不解析 HTML，
-      // 所以在被请求时临时造一个等价节点（真实 DOM 里它就是 <input id="newgroup">）
-      if (id === 'newgroup') {
-        if (!nodes.has('newgroup')) {
-          const input = new El('input', 'newgroup');
-          input.value = '';
-          nodes.set('newgroup', input);
-        }
-        return nodes.get('newgroup');
-      }
-      return nodes.get(id) || null;
-    },
+    // 只返回"真实存在"的元素：innerHTML 里插入的 id 由 El 的 setter 注册进来，
+    // 所以内联输入框在未出现前查不到 —— 这跟真实 DOM 一致，也让
+    // inlineInputActive() 的判断能被正确验证
+    getElementById: id => nodes.get(id) || null,
     querySelector: () => null,
     querySelectorAll: () => [],
     createDocumentFragment: () => new El('fragment'),
@@ -124,9 +128,18 @@ function makeHost(opts = {}) {
       windowListeners.get(type).push(fn);
     },
     dispatchEvent: () => {},
+    // 模拟真实 Electron 的 sendInputEvent：事件派发给【焦点元素】，
+    // 冒泡到 window（window 上的监听是捕获阶段，所以先跑）。
+    // 只派发给 window 是错的 —— 那样输入框自己的 keydown 处理器永远收不到，
+    // 会把"在标签输入框里回车"误判成"执行命令"。
     fireKey: (key, extra = {}) => {
-      const ev = Object.assign({ type: 'keydown', key, preventDefault() {}, stopPropagation() {} }, extra);
+      const ev = Object.assign({ type: 'keydown', key, target: null, preventDefault() {}, stopPropagation() {} }, extra);
       for (const fn of [...(windowListeners.get('keydown') || [])]) fn(ev);
+      const focused = nodes.get('tagInput') || nodes.get('newgroup');
+      if (focused) {
+        const at = Object.assign({}, ev, { target: focused });
+        for (const fn of [...(focused._listeners.get('keydown') || [])]) fn(at);
+      }
     }
   };
 
@@ -272,14 +285,22 @@ async function main() {
   assert(host.rubickCalls.setSubInput[0].placeholder, '没有给占位提示');
   ok('调用 rubick.setSubInput(onChange, 占位提示)');
 
-  console.log('== 2. 页面结构：只有头部一行 + 标签行 + 列表 ==');
-  for (const dead of ['echo', 'keyhint', 'count', 'sectionTitle', 'results', 'diag']) {
+  console.log('== 2. 顶栏单行：标签 + ＋ + 状态 ==');
+  for (const dead of ['echo', 'keyhint', 'count', 'sectionTitle', 'results', 'diag', 'brandLogo']) {
     assert(!host.nodes.has(dead), `已砍掉的元素 #${dead} 还在`);
   }
-  for (const alive of ['brandLogo', 'status', 'tags', 'list', 'spacer', 'menu', 'toast']) {
+  for (const alive of ['status', 'tags', 'list', 'spacer', 'menu', 'toast']) {
     assert(host.nodes.has(alive), `关键元素 #${alive} 缺失`);
   }
-  ok('回显块/按键提示/计数/副标题/☆ 全部移除，只剩必要元素');
+  const tagsHtml = host.el('tags').innerHTML;
+  assert(/data-group="">全部/.test(tagsHtml), `「全部」应是第一个标签：${tagsHtml}`);
+  assert(/tagAdd/.test(tagsHtml), '顶栏缺少 ＋ 添加按钮');
+  ok('单行顶栏：全部 → 标签 → ＋ 添加，状态在右');
+
+  console.log('== 2b. 顶栏里没有头部块 ==');
+  assert(!/class="head"/.test(html), '头部块还在（应该只有一行 .bar）');
+  assert(/<div class="bar">/.test(html), '缺少单行顶栏');
+  ok('Logo/标题/副标题已移除，页面只剩 顶栏一行 + 列表');
 
   console.log('== 3. 空列表显示引导文案 ==');
   const emptyRow = host.appended.find(x => x.className === 'empty');
@@ -338,9 +359,12 @@ async function main() {
   const recs = () => host.store.get('rubick-startup/history-v2').records;
   const target = recs()[0];
   const groupsBefore = target.groups.length;
-  // 模拟点 ＋ 后输入标签名并回车
+  // 模拟点记录下方的 ＋：closest 应先命中内层 [data-addgroup]，再命中 .row
   host.el('list').dispatch('click', {
-    target: { closest: sel => (sel === '.row' ? { dataset: { id: target.id } } : (sel === '[data-addgroup]' ? {} : null)) },
+    target: {
+      closest: sel => (sel === '[data-addgroup]' ? {}
+        : sel === '.row' ? { dataset: { id: target.id } } : null)
+    },
     clientX: 20, clientY: 20, stopPropagation() {}
   });
   const input = host.nodes.get('newgroup');
@@ -362,7 +386,10 @@ async function main() {
   const before = recs().find(r => r.id === target.id).groups.length;
   const chip = { dataset: { ungroup: recs().find(r => r.id === target.id).groups[0] } };
   host.el('list').dispatch('click', {
-    target: { closest: sel => (sel === '.row' ? { dataset: { id: target.id } } : (sel === '[data-ungroup]' ? chip : null)) },
+    target: {
+      closest: sel => (sel === '[data-ungroup]' ? chip
+        : sel === '.row' ? { dataset: { id: target.id } } : null)
+    },
     stopPropagation() {}
   });
   await settle();
@@ -452,6 +479,75 @@ async function main() {
   await settle();
   assert.strictEqual(host.spawned.length, 0, '不可用时竟然执行了');
   ok('不可用时拦住执行，状态如实说明原因');
+
+  console.log('== 17. 顶栏新建标签（空标签也要留住）==');
+  host = makeHost();
+  // 明确三条都无标签：seedRecords 的 taggedEvery 会给第 0 条打标，这里不用它
+  host.seed([
+    { id: 'a', command: 'aaa', time: 1000, kind: 'command', groups: [] },
+    { id: 'b', command: 'bbb', time: 2000, kind: 'command', groups: [] },
+    { id: 'c', command: 'ccc', time: 3000, kind: 'command', groups: [] }
+  ]);
+  host.runScript();
+  await settle();
+  const groupNames = () => [...(host.el('tags').innerHTML.matchAll(/data-group="([^"]*)"/g))].map(m => m[1]).filter(Boolean);
+  assert.strictEqual(groupNames().length, 0, `前置：不该有标签，实际 ${JSON.stringify(groupNames())}`);
+  // 点 ＋ 标签 → 输入名字 → 回车
+  host.el('tags').dispatch('click', { target: { closest: sel => (sel === '#tagAdd' ? {} : null) } });
+  const tinput = host.nodes.get('tagInput');
+  assert(tinput, '点 ＋ 标签 没有出现输入框');
+  tinput.value = '项目文件夹';
+  host.window.fireKey(undefined, { keyCode: 13 });
+  await settle();
+  assert(/项目文件夹/.test(host.el('tags').innerHTML), `新建的标签没出现在顶栏：${host.el('tags').innerHTML}`);
+  ok('顶栏 ＋ 标签 可新建，且没有记录引用它也不会消失');
+
+  console.log('== 18. 删除标签：从所有记录移出 ==');
+  host = makeHost();
+  host.seed([
+    { id: 'a', command: 'a', time: 1000, kind: 'command', groups: ['X', 'Y'] },
+    { id: 'b', command: 'b', time: 2000, kind: 'command', groups: ['X'] }
+  ]);
+  host.runScript();
+  await settle();
+  // 右键标签 → 删除
+  const tagEl = { dataset: { group: 'X' } };
+  host.el('tags').dispatch('contextmenu', {
+    target: { closest: sel => (sel === '[data-group]' ? tagEl : null) },
+    clientX: 5, clientY: 5, preventDefault() {}
+  });
+  await settle();
+  const del = { dataset: { tagact: 'delete' } };
+  host.el('menu').dispatch('click', { target: { closest: () => del }, currentTarget: host.el('menu') });
+  await settle();
+  const left = host.store.get('rubick-startup/history-v2').records;
+  assert(!left.some(r => (r.groups || []).includes('X')), '删除标签后记录里还残留 X');
+  assert(left.find(r => r.id === 'a').groups.includes('Y'), '删 X 不该影响 Y');
+  ok('删除标签会从所有记录移出，且不影响其它标签');
+
+  console.log('== 19. 重命名标签：记录跟着改 ==');
+  host = makeHost();
+  host.seed([{ id: 'a', command: 'a', time: 1000, kind: 'command', groups: ['旧名'] }]);
+  host.runScript();
+  await settle();
+  host.el('tags').dispatch('contextmenu', {
+    target: { closest: sel => (sel === '[data-group]' ? { dataset: { group: '旧名' } } : null) },
+    clientX: 5, clientY: 5, preventDefault() {}
+  });
+  await settle();
+  host.el('menu').dispatch('click', {
+    target: { closest: () => ({ dataset: { tagact: 'rename' } }) },
+    currentTarget: host.el('menu')
+  });
+  await settle();
+  const rinput = host.nodes.get('tagInput');
+  assert(rinput, '重命名没有出现输入框');
+  rinput.value = '新名';
+  host.window.fireKey(undefined, { keyCode: 13 });
+  await settle();
+  const renamed = host.store.get('rubick-startup/history-v2').records[0];
+  assert.deepStrictEqual(renamed.groups, ['新名'], `重命名没落到记录上：${JSON.stringify(renamed.groups)}`);
+  ok('重命名标签会同步改所有记录上的引用');
 
   console.log('\n全部通过：' + pass + ' 项');
 }

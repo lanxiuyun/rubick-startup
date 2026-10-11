@@ -6,21 +6,20 @@
 :root{color-scheme:light;--bg:#f4f6f3;--paper:#fff;--line:#e4e8e2;--text:#1f2720;--muted:#7c867c;--green:#548b45;--chip:#eef4ea;--red:#b84e48}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","Microsoft YaHei",sans-serif;overflow:hidden}
-.app{display:flex;flex-direction:column;height:100vh;padding:8px 10px 6px}
-/* 头部：一行，尽量矮 */
-.head{display:flex;align-items:center;gap:7px;flex:none;height:22px;margin-bottom:6px}
-.head img{width:16px;height:16px;flex:none}
-.head h1{font-size:13px;font-weight:650;margin:0;letter-spacing:-.01em}
-.head .spacer{flex:1}
-.status{font:10px/1 ui-monospace,Consolas,monospace;color:var(--muted);cursor:pointer;max-width:60%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.status.ok{color:#5c8a4e}.status.bad{color:var(--red)}
-/* 标签筛选行 */
-.tags{display:flex;align-items:center;gap:4px;flex:none;height:22px;margin-bottom:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.app{display:flex;flex-direction:column;height:100vh;padding:7px 9px 5px}
+/* 唯一的顶栏：标签在左、添加按钮、状态最右 —— 全在同一行 */
+.bar{display:flex;align-items:center;gap:6px;flex:none;height:24px;margin-bottom:5px}
+.tags{display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;height:24px}
 .tags::-webkit-scrollbar{display:none}
+.status{font:10px/1 ui-monospace,Consolas,monospace;color:var(--muted);cursor:pointer;flex:none;max-width:38%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.status::before{content:"●";margin-right:4px;font-size:9px;vertical-align:1px}
+.status.ok{color:#5c8a4e}.status.bad{color:var(--red)}.status.busy{color:#a26926}
 .tag{border:1px solid var(--line);background:#fff;border-radius:20px;padding:2px 9px;color:#5f6b5e;font-size:11px;white-space:nowrap;cursor:pointer;flex:none;line-height:15px}
 .tag:hover{border-color:#c9d8c2}
 .tag.on{background:var(--chip);border-color:#c6ddba;color:#3f6b34;font-weight:600}
-.tag.empty{color:#a6b0a5;cursor:default;border-style:dashed}
+.tag.add{color:#8fa48a;border-style:dashed;padding:2px 8px}
+.tag.add:hover{color:#4c7e3f;border-color:#9fbb92}
+.tag input{border:0;outline:none;background:transparent;font:11px inherit;width:74px;padding:0;color:var(--text)}
 /* 列表 */
 .list{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;border-top:1px solid var(--line)}
 .spacer{position:relative;width:100%}
@@ -52,8 +51,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style></head>
 <body><div class="app">
-  <div class="head"><img id="brandLogo" alt=""><h1>启动收藏</h1><span class="spacer"></span><span id="status" class="status" title="点击重新检测"></span></div>
-  <div class="tags" id="tags"></div>
+  <div class="bar"><div class="tags" id="tags"></div><span id="status" class="status" title="点击查看运行环境"></span></div>
   <div class="list" id="list"><div class="spacer" id="spacer"></div></div>
 </div>
 <div class="menu" id="menu"></div>
@@ -74,7 +72,6 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
  const KEY='rubick-startup/history-v2';
  const LIMIT=500;        // 只约束【没有标签】的临时记录；打过标签的永久保留
  const ROW_H=41;         // 固定行高：命令行 18 + 标签行 16 + 内边距/边框 7
- const LOGO='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIHN0b3AtY29sb3I9IiM4ZmJkNzIiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM0Nzc4M2QiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE4IiBmaWxsPSJub25lIiBzdHJva2U9IiNlNWU5ZTMiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xOCAzMi41IDMyIDIwbDE0IDEyLjV2MTdhMi41IDIuNSAwIDAgMS0yLjUgMi41aC0yM2EyLjUgMi41IDAgMCAxLTIuNS0yLjV6IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjZykiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0yNyA1MlYzOWE1IDUgMCAwIDEgMTAgMHYxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDc3ODNkIiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGNpcmNsZSBjeD0iNDkiIGN5PSIxNiIgcj0iNSIgZmlsbD0iI2Q5YTg1YyIvPjwvc3ZnPg==';
  let records=[], activeGroup='', currentCommand='', subInputReady=false, rowsDirty=true;
  let scrollTop=0, renderFrom=0, renderTo=0, menuTarget=null;
  const $=id=>document.getElementById(id);
@@ -114,7 +111,14 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const fuzzy=(text,query)=>{let t=String(text||'').toLocaleLowerCase(),q=query.toLocaleLowerCase().trim();if(!q)return 1;if(t.includes(q))return 100-q.length;let ti=0,st=-1,gap=0,last=-1;for(const ch of q){const at=t.indexOf(ch,ti);if(at<0)return 0;if(st<0)st=at;if(last>=0)gap+=at-last-1;last=at;ti=at+1}return Math.max(1,65-st-gap)};
  const groupsOf=r=>Array.isArray(r.groups)?r.groups:[];
- const allGroups=()=>{const seen=new Map();records.forEach(r=>groupsOf(r).forEach(g=>seen.set(g,(seen.get(g)||0)+1)));return [...seen.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(x=>x[0])};
+ // 标签从记录里长出来；pinnedGroups 存"还没有记录引用的空标签"，否则新建完就消失了
+ let pinnedGroups=[];
+ function allGroups(){
+  const seen=new Map();
+  records.forEach(r=>groupsOf(r).forEach(g=>seen.set(g,(seen.get(g)||0)+1)));
+  pinnedGroups.forEach(g=>{if(!seen.has(g))seen.set(g,0)});
+  return [...seen.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(x=>x[0]);
+ }
  // ── 存储 ──────────────────────────────────────────────────────
  function load(){try{if(rubick&&rubick.db){const d=rubick.db.get(KEY);if(d&&Array.isArray(d.records))return d.records}}catch(e){}try{const d=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(d))return d}catch(e){}return []}
  function save(){try{if(rubick&&rubick.db){let old=null;try{old=rubick.db.get(KEY)}catch(e){}const doc={_id:KEY,records};if(old&&old._rev)doc._rev=old._rev;rubick.db.put(doc);return}}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(records))}catch(e){toast('保存失败')}}
@@ -167,7 +171,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   if(subInputReady&&rubick&&typeof rubick.setSubInputValue==='function'){
    try{rubick.setSubInputValue('')}catch(e){}
   }
-  setStatus('正在运行…','');
+  setStatus('正在运行…','busy');
   spawnCommand(command,result=>{
    logLine('run-result',result.ok?'ok':'fail');
    setStatus(result.ok?'已运行：'+command.slice(0,40):'启动失败：'+((result.error||'').slice(0,50)),'bad');
@@ -229,22 +233,85 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
  function renderTags(){
   const groups=allGroups();
   const el=$('tags');
-  if(!groups.length){
-   el.innerHTML='<span class="tag empty">还没有标签 —— 点记录下方的 ＋ 添加</span>';
-   return;
-  }
+  // 一行搞定：全部 → 各标签 → ＋ 添加
   el.innerHTML='<span class="tag'+(activeGroup?'':' on')+'" data-group="">全部</span>'
-   +groups.map(g=>'<span class="tag'+(activeGroup===g?' on':'')+'" data-group="'+esc(g)+'">'+esc(g)+'</span>').join('');
+   +groups.map(g=>'<span class="tag'+(activeGroup===g?' on':'')+'" data-group="'+esc(g)+'">'+esc(g)+'</span>').join('')
+   +'<span class="tag add" id="tagAdd" title="新建标签">＋ 标签</span>';
  }
- // 数据或过滤条件变了就标记重绘：比"比较窗口范围"可靠，空列表也能正确渲染
+
+// ── 数据或过滤条件变了就标记重绘：比"比较窗口范围"可靠，空列表也能正确渲染
  function renderAll(){rowsDirty=true;renderTags();renderRows()}
  function setStatus(text,cls){
   const el=$('status');
   el.textContent=text||(canRun?(subInputReady?'可以运行':'输入层未接上'):('无法执行：'+env.reason));
-  el.classList.toggle('ok',cls==='ok'||(!cls&&canRun));
-  el.classList.toggle('bad',cls==='bad'||(!cls&&!canRun));
+  const state=cls||(canRun?'ok':'bad');
+  el.classList.toggle('ok',state==='ok');
+  el.classList.toggle('bad',state==='bad');
+  el.classList.toggle('busy',state==='busy');
  }
- // ── 标签编辑 ──────────────────────────────────────────────────
+ // ── 标签本身的增删改 ──────────────────────────────────────────
+ // 标签是从记录里长出来的，所以"建/删/改名"都要落到记录上
+ function renameGroup(oldName,newName){
+  const name=String(newName||'').trim();
+  if(!name||name===oldName)return;
+  let touched=0;
+  records.forEach(r=>{
+   const g=groupsOf(r);
+   if(!g.includes(oldName))return;
+   r.groups=[...new Set(g.map(x=>x===oldName?name:x))];
+   touched++;
+  });
+  if(!touched)return;
+  if(activeGroup===oldName)activeGroup=name;
+  persist();renderAll();
+  toast('已重命名为「'+name+'」');
+ }
+ function deleteGroup(name){
+  let touched=0;
+  records.forEach(r=>{
+   const g=groupsOf(r);
+   if(!g.includes(name))return;
+   r.groups=g.filter(x=>x!==name);
+   touched++;
+  });
+  if(activeGroup===name)activeGroup='';
+  persist();renderAll();
+  toast(touched?('已删除标签「'+name+'」，'+touched+' 条记录已移出'):('已删除标签「'+name+'」'));
+ }
+ function tagMenu(name,x,y){
+  menuTarget={tag:name};
+  showMenu(x,y,'<div class="mi" data-tagact="rename">重命名标签</div>'
+   +'<div class="mi danger" data-tagact="delete">删除标签</div>');
+ }
+ // 顶栏里的内联输入：新建标签 / 重命名
+ function inlineTagInput(mode,oldName){
+  const box=$('tags');
+  box.innerHTML='<span class="tag add"><input id="tagInput" placeholder="'+(mode==='rename'?'新名字·回车':'标签名·回车')+'"></span>';
+  const input=$('tagInput');
+  try{input.focus()}catch(e){}
+  input.addEventListener('keydown',ev=>{
+   if(isEnterKey(ev)){
+    ev.preventDefault();
+    const value=input.value;
+    if(mode==='create')createGroup(value);
+    else renameGroup(oldName,value);
+   }else if(ev.key==='Escape'||ev.keyCode===27){
+    renderTags();
+   }
+   ev.stopPropagation();
+  });
+  input.addEventListener('click',ev=>ev.stopPropagation());
+ }
+ // 新建一个空标签：没有记录引用它，所以用 pinnedGroups 记住，避免它"消失"
+ function createGroup(rawName){
+  const name=String(rawName||'').trim();
+  if(!name){renderTags();return}
+  if(!allGroups().includes(name))pinnedGroups.push(name);
+  activeGroup=name;
+  persist();renderAll();
+  toast('已新建标签「'+name+'」，给它加记录：右键记录 → 加入已有标签');
+ }
+ // ── 记录上的标签编辑 ──────────────────────────────────────────
  function addGroup(rec,rawName){
   const name=String(rawName||'').trim();
   if(!name)return;
@@ -297,7 +364,19 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
  $('menu').addEventListener('click',e=>{
   const item=e.target.closest('.mi');
   if(!item||!menuTarget)return;
+  // 标签菜单（右键顶部标签）
+  if(item.dataset.tagact){
+   const name=menuTarget.tag;
+   if(item.dataset.tagact==='delete'){deleteGroup(name);hideMenu();return}
+   if(item.dataset.tagact==='rename'){
+    const box=e.currentTarget.getBoundingClientRect();
+    hideMenu();
+    inlineTagInput('rename',name);
+    return;
+   }
+  }
   const rec=menuTarget;
+  if(!rec||!rec.id)return;
   if(item.dataset.group){addGroup(rec,item.dataset.group);hideMenu();return}
   if(item.dataset.ungroup){removeGroup(rec,item.dataset.ungroup);hideMenu();return}
   switch(item.dataset.act){
@@ -332,17 +411,19 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
    subInputReady=true;
   }catch(e){logLine('env','接管搜索框失败 '+e.message)}
  }
- // 搜索框按键被 sendInputEvent 转发进页面：合成事件只有 keyCode，没有 key
+ // 搜索框按键被 sendInputEvent 转发进页面：合成事件只有 keyCode，没有 key。
+ // 注意这是捕获阶段，会早于输入框自己的处理器 —— 所以有内联输入框在场时必须让路，
+ // 否则在标签输入框里按回车会先被当成"执行命令"。
+ function inlineInputActive(){
+  return !!$('tagInput')||($('menu').classList.contains('show')&&!!$('newgroup'));
+ }
  window.addEventListener('keydown',e=>{
   if(isEnterKey(e)){
+   if(inlineInputActive())return;   // 交给输入框自己的处理器
    e.preventDefault();
-   if($('menu').classList.contains('show')){
-    const input=$('newgroup');
-    if(input&&menuTarget){addGroup(menuTarget,input.value);hideMenu()}
-    return;
-   }
    launch(currentCommand);
   }else if(e.key==='Escape'||e.code==='Escape'||e.keyCode===27){
+   if(inlineInputActive())return;
    hideMenu();setCommand('');
   }
  },true);
@@ -369,14 +450,22 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   recordMenu(rec,e.clientX,e.clientY);
  });
  $('tags').addEventListener('click',e=>{
+  // ＋ 标签：在这一行内直接输入名字
+  if(e.target.closest('#tagAdd')){inlineTagInput('create');return}
   const t=e.target.closest('[data-group]');
   if(!t)return;
   activeGroup=t.dataset.group||'';
   renderAll();
   $('list').scrollTop=0;scrollTop=0;
  });
+ // 右键顶部标签：重命名 / 删除
+ $('tags').addEventListener('contextmenu',e=>{
+  const t=e.target.closest('[data-group]');
+  if(!t||!t.dataset.group)return;      // 「全部」不可改名/删除
+  e.preventDefault();
+  tagMenu(t.dataset.group,e.clientX,e.clientY);
+ });
  $('status').addEventListener('click',()=>{setStatus('','');toast(canRun?(subInputReady?'可以运行：在 Rubick 搜索框输入后回车':'输入层未接上'):('无法执行：'+env.reason))});
- try{$('brandLogo').src=LOGO}catch(e){}
  records=load();
  if(rubick&&typeof rubick.onPluginReady==='function'){
   rubick.onPluginReady(()=>{records=load();renderAll();try{rubick.setExpendHeight(570)}catch(e){}});
