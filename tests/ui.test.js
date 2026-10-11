@@ -241,8 +241,11 @@ async function main() {
   ok('输入框与运行按钮已移除，只保留回显和记录列表');
 
   console.log('== 4. 搜索框回车 → 直接执行（不再需要第二次回车）==');
+  host.state.advance(500);
   host.state.spawned.length = 0;
-  host.window.fireKey('Enter');
+  // 关键：Electron 的 sendInputEvent 造出来的是合成 keydown，
+  // 只有 keyCode、没有 key。这里就按这个形态喂进去，验证插件能认出来。
+  host.window.fireKey(undefined, { keyCode: 13 });
   await settle();
   assert.strictEqual(host.state.spawned.length, 1, `回车没有触发执行，spawn 次数 ${host.state.spawned.length}`);
   const call = host.state.spawned[0];

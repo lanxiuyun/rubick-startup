@@ -78,11 +78,31 @@ t = new e.BrowserView({ webPreferences: {
 | 机制 | 依据 |
 | --- | --- |
 | 搜索框内容 → 插件 | 搜索框组件把值 `sendSync('sendSubInputChangeEvent',{text})` 给插件；`rubick.setSubInput(onChange)` 注册的回调同步收到 `{text}`。**真机探测：每次按键都触发** |
-| 搜索框按键 → 插件 | 搜索框 keydown 时发 `sendPluginSomeKeyDownEvent`，主进程用 `Sr.getView().webContents.sendInputEvent` 灌进插件页面 → 插件 `window` 能收到 `Enter` |
+| 搜索框按键 → 插件 | 搜索框 keydown 时发 `sendPluginSomeKeyDownEvent`，主进程用 `Sr.getView().webContents.sendInputEvent` 灌进插件页面 |
 | 插件 → 搜索框 | `rubick.setSubInputValue(text)`；用来在执行后清空输入 |
 | 直读主窗口 DOM | **走不通** —— `@electron/remote` 在本版不可用（`Cannot find module`），真机探测确认 |
 
-因为按键只转发键码，`\`、`:` 这类字符**不能**靠按键重建文本 —— 文本一律走 `setSubInput` 回调。这是设计上的硬约束。
+两个**踩过的坑**，都写在这里省得再犯：
+
+**坑一：按键只转发键码，文本不能靠按键重建。** `\`、`:` 这类字符不在映射表里，所以文本一律走 `setSubInput` 回调。映射表在主进程里写死的，只覆盖功能键与字母数字：
+
+```js
+ur = { Backspace:'Backspace', Tab:'Tab', Enter:'Enter', Escape:'Escape', Space:'Space',
+       ArrowUp:'Up', ArrowDown:'Down', ..., KeyA:'A', ..., Digit0:'0', ..., Slash:'/', ... }
+```
+
+**坑二：`sendInputEvent` 造出来的是合成事件，只有 `keyCode`、没有 `key`。** 所以判断回车**不能**写 `e.key === 'Enter'`（实测永不命中，表现为"回车完全没反应"）。必须同时看 `e.key` / `e.code` / `e.keyCode`：
+
+```js
+function isEnterKey(e){
+  if (e.key === 'Enter' || e.key === 'Return') return true;
+  if (e.code === 'Enter' || e.code === 'NumpadEnter') return true;
+  if (e.keyCode === 13 || e.which === 13) return true;
+  return false;
+}
+```
+
+插件会把每次收到的按键原始字段写进日志（`[key] key=... code=... keyCode=...`），以后再出这类问题可以直接看日志，不用猜。
 
 **如果以后 Rubick 升级导致输入层失灵**，仓库里留了一套探测工具，可以重新问清楚协议：
 

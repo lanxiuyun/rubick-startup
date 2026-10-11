@@ -134,12 +134,21 @@
   selected=-1;
   render();
  }
- // 搜索框的按键会被 sendInputEvent 转发进插件页面（含回车）
+ // 搜索框的按键会被 sendInputEvent 转发进插件页面。
+ // 注意：这是 Electron 合成的 keydown，不一定带 key 属性，所以按多个特征判断，
+ // 并把原始字段记进日志——出问题时能直接看到收到了什么，而不是靠猜。
+ function isEnterKey(e){
+  if(e.key==='Enter'||e.key==='Return')return true;
+  if(e.code==='Enter'||e.code==='NumpadEnter')return true;
+  if(e.keyCode===13||e.which===13)return true;
+  return false;
+ }
  window.addEventListener('keydown',e=>{
-  if(e.key==='Enter'){
+  logLine('key','key='+JSON.stringify(e.key)+' code='+JSON.stringify(e.code)+' keyCode='+JSON.stringify(e.keyCode));
+  if(isEnterKey(e)){
    e.preventDefault();
    launch(currentCommand);
-  }else if(e.key==='Escape'){
+  }else if(e.key==='Escape'||e.code==='Escape'||e.keyCode===27){
    setCommand('');
   }
  },true);
