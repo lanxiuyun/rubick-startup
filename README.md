@@ -1,0 +1,180 @@
+# 启动收藏 · 一个像 Win+R 的 Rubick 插件
+
+在 Rubick 里输入**路径、程序名或命令**，按回车就跑；每次运行自动留记录，可模糊过滤、可收藏、可重跑。
+
+它替代的是 Windows 的「运行」对话框，不是文件夹收藏夹。
+
+- 搜索关键词：`运行`、`启动`、`start`、`fav`
+- 插件安装位置：`%APPDATA%\Rubick\rubick-plugins-new`（在 Rubick 4.3.8 上开发验证）
+- 项目放哪都行，下文用 `%PROJECT%` 代指本项目所在目录
+
+---
+
+## 一分钟装好
+
+```powershell
+cd %PROJECT%
+
+npm test                  # 先自检（不需要 Rubick 在跑）
+npm run install:rubick    # 装进 Rubick：建链接 + 写注册表
+```
+
+然后**关掉插件再重新打开**（页面文件是每次打开重新读的），搜索 `fav` 打开「启动收藏」。
+
+页面右下角就是状态：
+
+| 显示 | 含义 |
+| --- | --- |
+| `可以运行` | 正常，输入 `notepad` 回车试 |
+| `无法执行命令` | 页面拿不到 `child_process`，看下面的排查 |
+
+点右下角状态可以**立即重新检测**（检测是同步的，不需要重启任何东西）。
+
+其它命令：
+
+```powershell
+npm run check:rubick        # 只体检：链接在不在、注册表对不对
+npm run uninstall:rubick    # 从 Rubick 移除
+```
+
+---
+
+## 架构：一个插件，没有中间层
+
+```
+public/index.html          UI 插件页面（Rubick 把它放在挂着主窗口的 BrowserView 里）
+      │  require('child_process').spawn('cmd.exe', ['/d','/s','/c', <原文>])
+      ▼
+Windows
+```
+
+Rubick 建插件视图时给的是 `nodeIntegration: true` + `contextIsolation: false`：
+
+```js
+t = new e.BrowserView({ webPreferences: {
+  webSecurity: false, nodeIntegration: true, contextIsolation: false, devTools: true,
+  preload: <插件自己的 preload>, session: <插件专属 partition>
+}});
+```
+
+所以页面里 `require` 直接可用，**不需要系统插件桥接**。这是真机实证过的（诊断串 `可直接执行`），不是推断。
+
+### 为什么不走"一个系统插件"那条路
+
+系统插件确实能出界面——官方文档说它拿得到 **electron 主进程所有能力**（`ctx.mainWindow` 也挂在上面），所以它完全可以自己开窗口。但它进不了 Rubick 的搜索框：
+
+1. **能被搜到**：启动器搜索不按类型过滤，只看 `features` 在不在。
+2. **点开之后白屏**：系统插件的 `indexPath` 在主进程启动阶段被解析成 `entry` 的绝对路径 ——
+
+   ```js
+   getLocalPlugins().filter(e => "system" === e.pluginType)
+     .map(e => ({ ...e, indexPath: path.join(node_modules, e.name, e.entry) }))
+   ```
+
+   而点击处理放行了两类：`if ("ui" === e.pluginType || "system" === e.pluginType)`，于是它会去加载 `index.js` 当网页。
+3. **同一个字段干不了两件事**：`entry` 要给主进程 `require()`（必须是 CJS），同时又被当页面入口（必须是 HTML）。
+
+所以"系统插件 + 自建窗口 + 全局热键"是一条**成立的独立路线**（更接近取代 Win+R，不用先开 Rubick），代价是放弃搜索框集成、界面自己写。当前版本选了搜索框这条路。
+
+---
+
+## 之前踩过的三个坑（都记在这，别再踩）
+
+**坑一：Rubick 不认 `npm link`，只认它自己的注册表。**
+
+```js
+getLocalPlugins()   // 只读 %APPDATA%\Rubick\rubick-plugins-new\rubick-local-plugin.json
+```
+
+`npm link` 只把目录放进 `node_modules`、**跳过注册表**，插件因此永远不在 Rubick 名单里。`tools/install.js` 把两件事都做：建 junction（Windows 免管理员权限，比符号链接稳）+ 写注册表。
+
+**坑二：`ctx.appPath` 是程序目录，不是 userData。**
+
+开发时我拿 `ctx.appPath`（Rubick 安装目录）当成了插件所在的 userData 目录，于是算出来的白名单里只有安装目录，插件页面根本不在里面，握手被反复拒掉。
+
+实际两者不同，而且 userData 目录的**大小写可能和插件目录不一致**（例如 userData 是小写 `rubick`，而插件目录是大写 `Rubick`），它由 Rubick 主进程的 `--user-data-dir` 参数决定。所以**永远不要用 `appPath` 去推插件目录**，要么问 Electron 要 `app.getPath('userData')`，要么直接把几种候选拼出来。
+
+**坑三：Rubick 的插件页面不是主窗口，是 BrowserView。**
+
+所以 `event.sender === mainWindow.webContents` **恒为假** —— 任何基于"来源就是主窗口"的判断都会把合法请求全部拒掉。这个坑只对系统插件桥接方案有意义；现在已经没有桥接层了，但它值得记下来。
+
+另外一条**独立**的坑：官方文档明确写 `logo` **必须是 http/https 在线地址，不支持本地 logo**。之前用本地 `logo.svg`，插件列表里就显示不出图标。现在清单和页面都用 `data:image/svg+xml;base64,...`。
+
+---
+
+## 用起来是什么样
+
+- **回车**：执行输入框里的**原文**。就算这条命中了历史，也不会偷偷换成别的条目。
+- **↑ / ↓**：在当前筛选结果里选历史，把原文填回输入框，再回车执行。
+- **输入即过滤**：匹配命令原文、备注、分类，按相关度排序。
+- **点记录行**：直接重跑。
+- **☆ / ★**：收藏；「收藏」筛选只看收藏。
+- **Ctrl+K** 聚焦输入框，**Esc** 清空。
+- 记录存在 Rubick 本地数据库（`rubick.db`），最多 500 条；浏览器里预览时退回 `localStorage`。
+
+---
+
+## 排查问题
+
+页面自己写一份日志（用 `fs` 直接落盘，不依赖任何 IPC）：
+
+```
+%TEMP%\rubick-startup.log
+```
+
+正常的样子：
+
+```
+2026-...Z [session] 打开插件（v0.3.0）
+2026-...Z [env] 可直接执行 · IPC 可用 · 日志 <临时目录>\rubick-startup.log
+2026-...Z [run] 已启动：notepad
+```
+
+对照着看：
+
+| 现象 | 原因 | 处理 |
+| --- | --- | --- |
+| 没有这个日志文件 | 页面里连 `fs` 都取不到 | 基本不可能；先看右下角状态 |
+| 状态是 `无法执行命令` | `require('child_process')` 失败 | 确认用的是 Rubick 4.x，且插件是从本项目目录装的 |
+| 有 `已启动` 但程序没出现 | `cmd.exe` 认不出这个输入 | 换成完整路径，或写 `powershell -c "..."` |
+| Rubick 插件列表里图标/描述不对 | 清单字段问题 | `npm run uninstall:rubick` 后重新 `npm run install:rubick` |
+
+改页面（`public/`）**只要关掉插件重新打开**；只有改插件的 `name`/`main`/`features` 这类清单字段才需要重装。
+
+---
+
+## 已知边界（照实说）
+
+- 执行走 `cmd.exe /d /s /c <原文>`。**不是**模拟系统 Win+R，也不保证所有文本解析与运行框完全一致。
+- `$env:USERPROFILE\...` 是 PowerShell 语法，`cmd.exe` 不会按 PowerShell 语义解释。想跑 PowerShell 得显式写 `powershell -c "..."`。
+- 路径、程序名、cmd 命令是主要目标场景，逐项实测为准。
+- 成功提示表示**启动请求被系统接受**，不代表目标 GUI 程序之后运行成功——有意不等待 GUI 程序退出。
+- 命令以当前 Windows 用户权限运行。**只跑你自己信得过的输入。**
+
+---
+
+## 目录结构
+
+```
+package.json              插件清单（pluginType: ui；Rubick 靠 features[].cmds 建索引）
+public/
+  index.html              界面 + 交互 + 执行，全在原生 JS 里，无框架、无依赖
+tools/
+  install.js              安装 / 卸载 / 体检
+  privacy-scan.js         发布前的隐私体检（扫绝对路径/邮箱/密钥）
+tests/
+  run-all.js              npm test
+  static.test.js          清单、无桥接残留、安装器逻辑
+  ui.test.js              最小 DOM 下跑真实页面脚本，验证端到端链路
+```
+
+---
+
+## 下一步可以做的
+
+按优先级：
+
+1. 真机确认单插件版能跑（重构后必须重新验证一次）。
+2. 执行语义补齐：`$env:` 这类 PowerShell 写法、URL、文档关联。当前锚点是 `cmd.exe`，要更贴近 Win+R 可以换 `ShellExecuteW`。
+3. 历史管理：去重、常用排序、备注/分类编辑、导入 Win+R 旧历史。
+4. 全局热键：让运行框脱离 Rubick 主窗口直接呼出（走"系统插件 + 自建窗口"那条路）。
