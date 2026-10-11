@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>启动收藏</title>
 <style>
-:root{color-scheme:light;--bg:#f5f7f4;--paper:#fff;--line:#e5e9e3;--text:#202820;--muted:#7b857b;--green:#548b45;--pale:#edf4e9;--red:#b84e48}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% -25%,#e9f2e4,transparent 55%),var(--bg);color:var(--text);font:14px/1.45 "Segoe UI","Microsoft YaHei",sans-serif}.shell{max-width:920px;margin:auto;padding:25px 28px 28px}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:37px;height:37px}.brand h1{font-size:21px;margin:0;font-weight:650;letter-spacing:-.035em}.brand p{font-size:12px;color:var(--muted);margin:2px 0 0}.stats{font:11px ui-monospace,Consolas,monospace;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 10px}.stats b{color:var(--green);font-size:15px;margin-right:4px}.runbox{background:var(--paper);border:1px solid #dce5d8;border-radius:12px;padding:12px;box-shadow:0 7px 25px #2637230b}.inputrow{display:flex;gap:10px}.inputwrap{position:relative;flex:1}.inputwrap:before{content:"›_";position:absolute;left:13px;top:9px;color:var(--green);font:20px ui-monospace,Consolas,monospace;font-weight:bold}#query{width:100%;height:44px;border:1px solid var(--line);border-radius:8px;outline:none;background:#fbfcfa;padding:0 13px 0 45px;color:var(--text);font:15px ui-monospace,Consolas,"Microsoft YaHei",monospace}#query:focus{border-color:#91b682;box-shadow:0 0 0 3px #709f5d1c}.run{border:0;border-radius:8px;background:var(--green);color:#fff;font-weight:700;padding:0 20px;cursor:pointer}.run:hover{background:#477a39}.keys{font:10px ui-monospace,Consolas,monospace;color:#8b958b;margin:8px 3px 1px}.keys kbd{font:inherit;background:#f3f5f2;border:1px solid #e2e7e0;border-radius:4px;padding:2px 5px;color:#62705f}.keys em{font-style:normal;color:#477a39}.sectionbar{display:flex;align-items:center;justify-content:space-between;margin:19px 2px 8px}.sectionbar strong{font-size:12px;color:#4e5c4d}.filters{display:flex;gap:5px}.filter{border:1px solid transparent;background:transparent;border-radius:20px;padding:5px 10px;color:#7d887d;font-size:11px;cursor:pointer}.filter.active{background:#eaf2e6;color:#4c7e3f}.results{display:grid;gap:6px;max-height:340px;overflow:auto}.row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid transparent;border-radius:8px;background:#ffffffa8;cursor:pointer;transition:.12s}.row:hover,.row.selected{background:#fff;border-color:#dce7d7;box-shadow:0 3px 10px #24351d0a}.row.selected{outline:2px solid #cfe1c7;outline-offset:-2px}.typeicon{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:#eef4ea;color:var(--green);font:13px ui-monospace,Consolas,monospace;flex:none}.typeicon.cmd{background:#eaf2e6}.entry{flex:1;min-width:0}.command{font:13px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:10px;margin-top:3px}.badge{border:1px solid var(--line);border-radius:20px;padding:1px 7px}.star{border:0;background:transparent;color:#c3ccc3;font-size:16px;cursor:pointer;padding:2px 4px}.star.on{color:#d9a85c}.empty{border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}.empty b{display:block;color:#5c6a5b;margin-bottom:5px}.footer{border-top:1px solid var(--line);margin-top:15px;padding-top:10px;color:#8b958b;font-size:10px;display:flex;justify-content:space-between;gap:10px}.diag{font:10px ui-monospace,Consolas,monospace;color:#9aa79a;margin-left:auto}.status{color:#a26926;cursor:pointer}.status.bridge-ok{color:#477a39}.status.bridge-missing{color:#b84e48}.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(20px);background:#24351d;color:#f2f7ef;font-size:12px;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+:root{color-scheme:light;--bg:#f5f7f4;--paper:#fff;--line:#e5e9e3;--text:#202820;--muted:#7b857b;--green:#548b45;--pale:#edf4e9;--red:#b84e48}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% -25%,#e9f2e4,transparent 55%),var(--bg);color:var(--text);font:14px/1.45 "Segoe UI","Microsoft YaHei",sans-serif}.shell{max-width:920px;margin:auto;padding:25px 28px 28px}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:37px;height:37px}.brand h1{font-size:21px;margin:0;font-weight:650;letter-spacing:-.035em}.brand p{font-size:12px;color:var(--muted);margin:2px 0 0}.stats{font:11px ui-monospace,Consolas,monospace;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 10px}.stats b{color:var(--green);font-size:15px;margin-right:4px}.runbox{background:var(--paper);border:1px solid #dce5d8;border-radius:12px;padding:12px;box-shadow:0 7px 25px #2637230b}.echo{display:flex;align-items:center;gap:12px;min-height:44px;border:1px solid var(--line);border-radius:8px;background:#fbfcfa;padding:0 14px}.echoicon{color:var(--green);font:20px ui-monospace,Consolas,monospace;font-weight:bold;flex:none}.echotext{font:15px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}.echotext.idle{color:#9aa79a}.echotext.bad{color:var(--red)}.keys{font:10px ui-monospace,Consolas,monospace;color:#8b958b;margin:8px 3px 1px}.keys kbd{font:inherit;background:#f3f5f2;border:1px solid #e2e7e0;border-radius:4px;padding:2px 5px;color:#62705f}.keys em{font-style:normal;color:#477a39}.sectionbar{display:flex;align-items:center;justify-content:space-between;margin:19px 2px 8px}.sectionbar strong{font-size:12px;color:#4e5c4d}.filters{display:flex;gap:5px}.filter{border:1px solid transparent;background:transparent;border-radius:20px;padding:5px 10px;color:#7d887d;font-size:11px;cursor:pointer}.filter.active{background:#eaf2e6;color:#4c7e3f}.results{display:grid;gap:6px;max-height:340px;overflow:auto}.row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid transparent;border-radius:8px;background:#ffffffa8;cursor:pointer;transition:.12s}.row:hover,.row.selected{background:#fff;border-color:#dce7d7;box-shadow:0 3px 10px #24351d0a}.row.selected{outline:2px solid #cfe1c7;outline-offset:-2px}.typeicon{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:#eef4ea;color:var(--green);font:13px ui-monospace,Consolas,monospace;flex:none}.typeicon.cmd{background:#eaf2e6}.entry{flex:1;min-width:0}.command{font:13px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:10px;margin-top:3px}.badge{border:1px solid var(--line);border-radius:20px;padding:1px 7px}.star{border:0;background:transparent;color:#c3ccc3;font-size:16px;cursor:pointer;padding:2px 4px}.star.on{color:#d9a85c}.empty{border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}.empty b{display:block;color:#5c6a5b;margin-bottom:5px}.footer{border-top:1px solid var(--line);margin-top:15px;padding-top:10px;color:#8b958b;font-size:10px;display:flex;justify-content:space-between;gap:10px}.diag{font:10px ui-monospace,Consolas,monospace;color:#9aa79a;margin-left:auto}.status{color:#a26926;cursor:pointer}.status.bridge-ok{color:#477a39}.status.bridge-missing{color:#b84e48}.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(20px);background:#24351d;color:#f2f7ef;font-size:12px;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style></head>
 <body><main class="shell">
 <header class="header"><div class="brand"><img id="brandLogo" alt=""><div><h1>启动收藏</h1><p>直接在 Rubick 搜索框输入，回车运行 · 自动留下记录</p></div></div><div class="stats"><b id="count">0</b> 条记录</div></header>
-<section class="runbox"><div class="inputrow"><div class="inputwrap"><input id="query" autocomplete="off" placeholder="在 Rubick 搜索框输入，或在这里输入…"></div><button class="run" id="run">运行 ↵</button></div><div class="keys" id="keyhint"></div></section>
+<section class="runbox"><div class="echo"><span class="echoicon">›_</span><span id="echo" class="echotext">在 Rubick 搜索框输入…</span></div><div class="keys" id="keyhint"></div></section>
 <div class="sectionbar"><strong id="sectionTitle">历史与收藏</strong><div class="filters"><button class="filter active" data-filter="all">全部</button><button class="filter" data-filter="favorites">收藏</button></div></div>
 <section id="results" class="results"></section>
-<footer class="footer"><span>回车执行输入内容；历史记录可再次筛选、运行或收藏。</span><span class="diag" id="diag"></span><span id="status" class="status" title="点击可重新检测运行环境">正在检测运行环境…</span></footer>
+<footer class="footer"><span>回车执行输入内容；记录可点击重跑，点 ☆ 收藏。</span><span class="diag" id="diag"></span><span id="status" class="status" title="点击可重新检测运行环境">正在检测运行环境…</span></footer>
 </main><div class="toast" id="toast"></div>
 <script>
 (()=>{
@@ -26,7 +26,7 @@
  //   5. 插件页面 nodeIntegration:true + contextIsolation:false → 可直接 require child_process。
  const KEY='rubick-startup/history-v2';
  const LOGO='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIHN0b3AtY29sb3I9IiM4ZmJkNzIiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM0Nzc4M2QiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE4IiBmaWxsPSJub25lIiBzdHJva2U9IiNlNWU5ZTMiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xOCAzMi41IDMyIDIwbDE0IDEyLjV2MTdhMi41IDIuNSAwIDAgMS0yLjUgMi41aC0yM2EyLjUgMi41IDAgMCAxLTIuNS0yLjV6IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjZykiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0yNyA1MlYzOWE1IDUgMCAwIDEgMTAgMHYxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDc3ODNkIiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGNpcmNsZSBjeD0iNDkiIGN5PSIxNiIgcj0iNSIgZmlsbD0iI2Q5YTg1YyIvPjwvc3ZnPg==';
- let records=[], filter='all', selected=-1;
+ let records=[], filter='all', selected=-1, currentCommand='', subInputReady=false;
  const $=id=>document.getElementById(id);
  // ── 运行环境 ──────────────────────────────────────────────────
  const env={spawn:null,fs:null,logPath:null,reason:''};
@@ -66,7 +66,7 @@
  function load(){try{if(rubick&&rubick.db){const d=rubick.db.get(KEY);if(d&&Array.isArray(d.records))return d.records}}catch(e){}try{const d=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(d))return d}catch(e){}return []}
  function save(){try{if(rubick&&rubick.db){let old=null;try{old=rubick.db.get(KEY)}catch(e){}const doc={_id:KEY,records};if(old&&old._rev)doc._rev=old._rev;rubick.db.put(doc);return}}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(records))}catch(e){toast('保存记录失败')}}
  function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');schedule(()=>el.classList.remove('show'),2000)}
- function matches(){const q=$('query').value;return records.filter(r=>filter!=='favorites'||r.favorite).map((r,i)=>({r,i,score:Math.max(fuzzy(r.command,q),fuzzy(r.note,q),fuzzy(r.category,q))})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||b.r.time-a.r.time)}
+ function matches(){const q=currentCommand;return records.filter(r=>filter!=='favorites'||r.favorite).map((r,i)=>({r,i,score:Math.max(fuzzy(r.command,q),fuzzy(r.note,q),fuzzy(r.category,q))})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||b.r.time-a.r.time)}
  function render(){const list=matches();$('count').textContent=records.length;$('sectionTitle').textContent=filter==='favorites'?'收藏':'历史与收藏';if(!list.length){$('results').innerHTML=`<div class="empty"><b>${records.length?'没有匹配记录':'还没有运行记录'}</b>${records.length?'试试其他关键词，或切换筛选。':'在上方输入一条路径或命令，按 Enter 运行后就会自动记录。'}</div>`;selected=-1;return}if(selected>=list.length)selected=list.length-1;$('results').innerHTML=list.map((x,n)=>`<article class="row ${n===selected?'selected':''}" data-index="${n}"><div class="typeicon ${x.r.kind==='command'?'cmd':''}">${x.r.kind==='command'?'›_':'↗'}</div><div class="entry"><div class="command" title="${esc(x.r.command)}">${esc(x.r.command)}</div><div class="meta"><span>${new Date(x.r.time).toLocaleString()}</span>${x.r.note?`<span>${esc(x.r.note)}</span>`:''}<span class="badge">${x.r.kind==='command'?'运行项':'路径/程序'}</span></div></div><button class="star ${x.r.favorite?'on':''}" data-star="${esc(x.r.id)}" title="收藏">${x.r.favorite?'★':'☆'}</button></article>`).join('')}
  function guessKind(s){return /^[a-zA-Z]:[\\/]|^\\\\|^\.\.?[\\/]/.test(s.trim())?'path':'command'}
  // 直接执行：不等待目标程序退出，只报告启动请求是否被系统接受（Win+R 的语义）。
@@ -108,19 +108,16 @@
    $('status').textContent=result.ok?'已交给 Windows 启动':'启动失败';
    toast(result.ok?'已提交给 Windows':'启动失败：'+(result.error||'未知错误'));
   });
-  $('query').focus();
  }
- // ── 输入层：单向镜像 ──────────────────────────────────────────
- // 设计选择：输入的唯一来源是 Rubick 搜索框，插件里的框只显示、不改值。
- // 这样就不存在"这个值到底是用户打的还是搜索框回放的"的歧义，
- // 也就不需要复杂的回环防护。没有 Rubick 时（浏览器预览）才允许直接输入。
- let subInputReady=false;
+ // ── 输入层：输入只来自 Rubick 搜索框 ──────────────────────────
+ // 插件页面不再放输入框，上方只回显当前输入。这样就不存在
+ // "这个值到底是用户打的还是搜索框回放的"的歧义，也不需要回环防护。
  if(rubick&&typeof rubick.setSubInput==='function'){
   try{
    rubick.setSubInput(data=>{
     // 实测载荷是 {text:"..."}
     const text=data&&typeof data==='object'?(data.text??''):(data??'');
-    mirrorQuery(text);
+    setCommand(text);
    },'输入路径、程序名或命令，回车运行',true);
    subInputReady=true;
    diag('输入层：已接管 Rubick 搜索框');
@@ -128,50 +125,29 @@
    diag('输入层：接管搜索框失败 '+e.message);
   }
  }
- function mirrorQuery(text){
-  const value=String(text??'');
-  if($('query').value!==value)$('query').value=value;
+ // 上方只做回显，真正的输入在 Rubick 搜索框里
+ function setCommand(text){
+  currentCommand=String(text??'');
+  const el=$('echo');
+  el.textContent=currentCommand||(subInputReady?'在 Rubick 搜索框输入…':'需要 Rubick 搜索框才能输入');
+  el.classList.toggle('idle',!currentCommand);
   selected=-1;
   render();
  }
- // 用了 Rubick 搜索框就把镜像框设为只读，避免用户在一个"改了也不生效"的框里打字
- try{
-  if(subInputReady){
-   $('query').readOnly=true;
-   $('query').placeholder='（在上面 Rubick 搜索框里输入）';
-  }
- }catch(e){}
  // 搜索框的按键会被 sendInputEvent 转发进插件页面（含回车）
  window.addEventListener('keydown',e=>{
   if(e.key==='Enter'){
    e.preventDefault();
-   launch($('query').value);
+   launch(currentCommand);
   }else if(e.key==='Escape'){
-   mirrorQuery('');
+   setCommand('');
   }
  },true);
- // 没有 Rubick 搜索框时，插件自己的输入框才是输入源
- $('query').addEventListener('input',e=>{
-  if(subInputReady)return;
-  const value=(e&&e.target&&'value' in e.target)?e.target.value:$('query').value;
-  if($('query').value!==value)$('query').value=value;
-  selected=-1;render();
- });
- $('query').addEventListener('keydown',e=>{
-  if(e.key==='Enter'){e.preventDefault();launch($('query').value)}
-  else if(e.key==='ArrowDown'||e.key==='ArrowUp'){
-   const list=matches();if(!list.length)return;
-   e.preventDefault();
-   selected=e.key==='ArrowDown'?Math.min(selected+1,list.length-1):Math.max(selected<=0?0:selected-1,0);
-   mirrorQuery(list[selected].r.command);
-  }
- });
- $('run').onclick=()=>launch($('query').value);
  $('results').addEventListener('click',e=>{
   const star=e.target.closest('[data-star]');
   if(star){e.stopPropagation();const r=records.find(x=>x.id===star.dataset.star);if(r){r.favorite=!r.favorite;save();render()}return}
   const row=e.target.closest('[data-index]');
-  if(row){const item=matches()[Number(row.dataset.index)];if(item){mirrorQuery(item.r.command);launch(item.r.command)}}
+  if(row){const item=matches()[Number(row.dataset.index)];if(item){setCommand(item.r.command);launch(item.r.command)}}
  });
  document.querySelector('.filters').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;selected=-1;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));render()});
  // ── 状态 ──────────────────────────────────────────────────────
@@ -181,15 +157,15 @@
   el.textContent=ready?'可以运行':'无法执行命令';
   el.classList.toggle('bridge-ok',ready);
   el.classList.toggle('bridge-missing',!ready);
-  diag(ready?('可直接执行 · '+(rubick?'输入走 Rubick 搜索框':'独立输入框')):('不可用：'+env.reason));
+  diag(ready?('可直接执行 · '+(subInputReady?'输入走 Rubick 搜索框':'输入层未接上')):('不可用：'+env.reason));
  }
- $('status').addEventListener('click',()=>{refreshStatus();toast(canRun?(rubick?'可以运行：在 Rubick 搜索框输入后回车':'可以运行：在输入框输入后回车'):'无法执行：'+env.reason)});
- $('keyhint').innerHTML='<em>在 Rubick 搜索框输入</em>　 <kbd>Enter</kbd> 运行　 <kbd>↑</kbd><kbd>↓</kbd> 选历史　 <kbd>Esc</kbd> 清空';
+ $('status').addEventListener('click',()=>{refreshStatus();toast(canRun?(subInputReady?'可以运行：在 Rubick 搜索框输入后回车':'无法输入：搜索框回调没接上'):'无法执行：'+env.reason)});
+ $('keyhint').innerHTML='<em>在 Rubick 搜索框输入</em>　 <kbd>Enter</kbd> 运行　 <kbd>Esc</kbd> 清空　 点记录直接重跑';
  try{$('brandLogo').src=LOGO}catch(e){}
  records=load();
  if(rubick&&typeof rubick.onPluginReady==='function'){
   rubick.onPluginReady(()=>{records=load();render();try{rubick.setExpendHeight(570)}catch(e){}});
  }
- render();refreshStatus();
+ render();setCommand('');refreshStatus();
 })();
 </script></body></html>

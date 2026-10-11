@@ -58,10 +58,14 @@ assert(html.includes('unref'), 'spawn 后应 unref，否则 Rubick 退出会被�
 assert(html.includes('可以运行') && html.includes('无法执行命令'), '页面缺少运行环境状态文案');
 // 输入层：真机实证过的三条通道，任何一条被删掉都应该让测试失败
 assert(/setSubInput\s*\(/.test(html), '页面没有用 rubick.setSubInput 接管搜索框（输入层主干）');
-assert(html.includes("addEventListener('keydown'"), '页面没有监听搜键（搜索框转发的回车靠它）');
+assert(html.includes("addEventListener('keydown'"), '页面没有监听按键（搜索框转发的回车靠它）');
 assert(html.includes('setSubInputValue'), '页面没有用 setSubInputValue 清空搜索框（否则回车会重复执行）');
 assert(html.includes('__rubickStartupNow'), '时间源应可注入，否则去重窗口无法测试');
-ok('页面直连 child_process，输入走 Rubick 搜索框，含状态/诊断/日志/可注入时钟');
+// 插件页面不该再有输入框：输入的唯一来源是 Rubick 搜索框
+assert(!html.includes('id="query"'), '插件页面不该再有输入框 #query');
+assert(!html.includes('id="run"'), '插件页面不该再有运行按钮 #run');
+assert(html.includes('id="echo"'), '页面缺少输入回显区 #echo');
+ok('页面直连 child_process，输入走 Rubick 搜索框，只回显不重复提供输入框');
 
 console.log('== 4. JS 语法 ==');
 for (const file of ['tools/install.js']) {

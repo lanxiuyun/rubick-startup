@@ -75,7 +75,7 @@ function makeHost(opts = {}) {
     if (!nodes.has(id)) nodes.set(id, new El('div', id));
     return nodes.get(id);
   };
-  for (const id of ['count', 'sectionTitle', 'results', 'query', 'run', 'status', 'toast', 'diag', 'brandLogo', 'keyhint']) ensure(id);
+  for (const id of ['count', 'sectionTitle', 'results', 'echo', 'status', 'toast', 'diag', 'brandLogo', 'keyhint']) ensure(id);
 
   const filters = new El('div');
   const allBtn = new El('button'); allBtn.dataset.filter = 'all';
@@ -227,14 +227,20 @@ async function main() {
   assert(host.rubickCalls.setSubInput[0].placeholder, 'setSubInput 没有给占位提示');
   ok('调用 rubick.setSubInput(onChange, 占位提示) 接管搜索框');
 
-  console.log('== 2. 在 Rubick 搜索框打字 → 插件实时收到 ==');
+  console.log('== 2. 在 Rubick 搜索框打字 → 插件上方实时回显 ==');
   host.searchBoxChange('note');
-  assert.strictEqual(host.el('query').value, 'note', `插件输入框没有同步：${host.el('query').value}`);
+  assert.strictEqual(host.el('echo').textContent, 'note', `回显没有跟上：${host.el('echo').textContent}`);
   host.searchBoxChange('notepad');
-  assert.strictEqual(host.el('query').value, 'notepad');
-  ok('搜索框变化 → rubick 回调 → 插件输入框同步（用于实时过滤）');
+  assert.strictEqual(host.el('echo').textContent, 'notepad');
+  assert(!host.el('echo').classList.contains('idle'), '有内容时不该是占位样式');
+  ok('搜索框变化 → rubick 回调 → 上方回显当前输入');
 
-  console.log('== 3. 搜索框回车 → 直接执行（不再需要第二次回车）==');
+  console.log('== 3. 插件页面里没有输入框（只显示记录）==');
+  assert(!host.nodes.has('query'), '插件页面不该再有输入框 #query');
+  assert(!host.nodes.has('run'), '插件页面不该再有运行按钮 #run');
+  ok('输入框与运行按钮已移除，只保留回显和记录列表');
+
+  console.log('== 4. 搜索框回车 → 直接执行（不再需要第二次回车）==');
   host.state.spawned.length = 0;
   host.window.fireKey('Enter');
   await settle();
@@ -248,7 +254,7 @@ async function main() {
   assert.strictEqual(host.el('status').textContent, '已交给 Windows 启动');
   ok('搜索框回车 → 执行搜索框里的原文 → spawn(cmd.exe /d /s /c <原文>)');
 
-  console.log('== 4. 执行后写入历史 ==');
+  console.log('== 5. 执行后写入历史 ==');
   const saved = host.state.store.get('rubick-startup/history-v2');
   assert(saved && saved.records.length === 1, '历史没有落库');
   assert.strictEqual(saved.records[0].command, 'notepad');
@@ -256,17 +262,11 @@ async function main() {
   assert.strictEqual(host.el('count').textContent, 1);
   ok('执行后历史落库并刷新计数');
 
-  console.log('== 5. 接管搜索框后，镜像输入框设为只读（避免改了不起作用）==');
-  assert.strictEqual(host.el('query').readOnly, true, '接管成功后应把镜像框设为只读');
-  assert(/Rubick 搜索框/.test(host.el('query').placeholder), `占位提示不对：${host.el('query').placeholder}`);
-  ok('镜像框只读，提示用户去 Rubick 搜索框输入');
-
-  console.log('== 6. 镜像框不再写回搜索框（单向，天然无回环）==');
-  host.rubickCalls.setSubInputValue.length = 0;
-  host.el('query').value = 'calc';
-  host.el('query').dispatch('input', { target: { value: 'calc' } });
-  assert.strictEqual(host.rubickCalls.setSubInputValue.length, 0, '镜像框不该写回搜索框');
-  ok('插件不反向写搜索框，消除双向同步歧义');
+  console.log('== 6. 清空输入后回显回到占位提示 ==');
+  host.searchBoxChange('');
+  assert(/搜索框输入/.test(host.el('echo').textContent), `占位提示不对：${host.el('echo').textContent}`);
+  assert(host.el('echo').classList.contains('idle'), '空输入时应是占位样式');
+  ok('输入清空后回显显示占位提示');
 
   console.log('== 7. 执行后清空搜索框（否则再按回车会重复执行）==');
   host.state.spawned.length = 0;
@@ -279,7 +279,11 @@ async function main() {
     host.rubickCalls.setSubInputValue.includes(''),
     `执行后没有清空搜索框，记录：${JSON.stringify(host.rubickCalls.setSubInputValue)}`
   );
-  assert.strictEqual(host.el('query').value, '', `搜索框内容应已清空，实际：${host.el('query').value}`);
+  assert(
+    /搜索框输入/.test(host.el('echo').textContent),
+    `回显应回到占位提示，实际：${host.el('echo').textContent}`
+  );
+  assert(host.el('echo').classList.contains('idle'), '清空后应是占位样式');
   ok('执行后把搜索框置空，避免重复执行、也让 Rubick 不再拿原文匹配插件');
 
   console.log('== 8. 去重窗口：同一次回车从两条路到达只算一次 ==');
@@ -287,7 +291,7 @@ async function main() {
   host.searchBoxChange('calc');
   host.state.spawned.length = 0;
   host.window.fireKey('Enter');                              // 搜索框转发的回车
-  host.el('query').dispatch('keydown', { key: 'Enter' });    // 页面自己的回车
+  host.window.fireKey('Enter');                              // 万一又来一次
   await settle();
   assert.strictEqual(host.state.spawned.length, 1, `去重失败，执行了 ${host.state.spawned.length} 次`);
   ok('180ms 内的重复回车只执行一次');
@@ -354,16 +358,17 @@ async function main() {
   assert(/启动失败/.test(deadHost.el('status').textContent), `应报错，实际：${deadHost.el('status').textContent}`);
   ok('不可用时不执行，状态如实说明原因');
 
-  console.log('== 14. 没有 window.rubick 时退化为独立输入框 ==');
+  console.log('== 14. 没有 window.rubick 时：明确说明"需要 Rubick 搜索框" ==');
   const plainHost = makeHost({ noRubick: true });
   plainHost.runScript();
   await settle();
   assert.strictEqual(plainHost.rubickCalls.setSubInput.length, 0, '没有 rubick 时不该调 setSubInput');
-  plainHost.el('query').value = 'notepad';
-  plainHost.el('query').dispatch('keydown', { key: 'Enter' });
-  await settle();
-  assert.strictEqual(plainHost.state.spawned.length, 1, '独立输入框下回车应该能执行');
-  ok('没有 Rubick 环境时仍可用插件自己的输入框（浏览器预览）');
+  assert(/需要 Rubick 搜索框/.test(plainHost.el('echo').textContent), `回显应说明需要搜索框，实际：${plainHost.el('echo').textContent}`);
+  assert(
+    /输入层未接上/.test(plainHost.el('diag').textContent),
+    `诊断串应说明输入层没接上，实际：${plainHost.el('diag').textContent}`
+  );
+  ok('没有 Rubick 环境时如实说明输入不可用，不假装能输入');
 
   console.log('== 15. 品牌图标走 data URI ==');
   assert(/^data:image\/svg\+xml;base64,/.test(host.el('brandLogo').src), '图标不是 data URI');
