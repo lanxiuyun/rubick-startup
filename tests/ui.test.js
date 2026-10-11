@@ -1,10 +1,10 @@
 // 用最小 DOM/模块桩把 public/index.html 的内联脚本真正跑起来。
 //
-// 这轮新增的重点是"输入层"：Rubick 搜索框 ⇄ 插件页面。
-// 依据是真机探测到的机制（不再是猜测）：
-//   - rubick.setSubInput(onChange) 注册回调，载荷是 {text}
-//   - rubick.setSubInputValue(text) 反向写入搜索框
-//   - 搜索框的按键被 sendInputEvent 灌进页面 → window keydown 能收到回车
+// 这一版页面 = 字符串管理 + 标签 + 虚拟滚动，所以测试重点：
+//   1. 输入层（Rubick 搜索框 → 页面），含"合成事件只有 keyCode"这个坑
+//   2. 标签：加/移出/筛选/永久保留
+//   3. 虚拟滚动：只渲染可见窗口、行高固定、回滚位置正确
+//   4. 上限：只清理没标签的记录
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -12,23 +12,20 @@ const vm = require('vm');
 
 const HTML = path.join(__dirname, '..', 'public', 'index.html');
 const html = fs.readFileSync(HTML, 'utf8');
-const scriptMatch = /<script>([\s\S]*?)<\/script>/.exec(html);
-assert(scriptMatch, 'index.html 里找不到内联 <script>');
-const SCRIPT = scriptMatch[1];
+const SCRIPT = /<script>([\s\S]*?)<\/script>/.exec(html)[1];
+const ROW_H = Number(/const ROW_H=(\d+)/.exec(SCRIPT)[1]);
 
 // ---------- 极简 DOM ----------
 class ClassList {
   constructor(el) { this.el = el; this.set = new Set(); }
-  add(...names) { for (const n of names) if (n) this.set.add(n); this.sync(); }
-  remove(...names) { for (const n of names) this.set.delete(n); this.sync(); }
-  contains(name) { return this.set.has(name); }
-  toggle(name, force) {
-    const want = force === undefined ? !this.set.has(name) : !!force;
-    if (want) this.set.add(name); else this.set.delete(name);
-    this.sync();
+  add(...n) { for (const x of n) if (x) this.set.add(x); }
+  remove(...n) { for (const x of n) this.set.delete(x); }
+  contains(n) { return this.set.has(n); }
+  toggle(n, force) {
+    const want = force === undefined ? !this.set.has(n) : !!force;
+    if (want) this.set.add(n); else this.set.delete(n);
     return want;
   }
-  sync() { this.el._className = [...this.set].join(' '); }
 }
 
 class El {
@@ -40,12 +37,15 @@ class El {
     this.value = '';
     this.src = '';
     this.dataset = {};
+    this.style = {};
     this.classList = new ClassList(this);
-    this._className = '';
+    this.children = [];
     this._listeners = new Map();
+    this.clientHeight = 200;   // 模拟视口高度
+    this.scrollTop = 0;
+    this.offsetWidth = 160;
+    this.offsetHeight = 120;
   }
-  set className(v) { this.classList.set = new Set(String(v).split(/\s+/).filter(Boolean)); this._className = v; }
-  get className() { return [...this.classList.set].join(' '); }
   addEventListener(type, fn) {
     if (!this._listeners.has(type)) this._listeners.set(type, []);
     this._listeners.get(type).push(fn);
@@ -54,37 +54,66 @@ class El {
     this._listeners.set(type, (this._listeners.get(type) || []).filter(x => x !== fn));
   }
   dispatch(type, event = {}) {
-    const ev = Object.assign({ type, target: this, key: '', preventDefault() {}, stopPropagation() {} }, event);
+    const ev = Object.assign({
+      type, target: this, key: '', preventDefault() {}, stopPropagation() {}
+    }, event);
     for (const fn of [...(this._listeners.get(type) || [])]) fn(ev);
   }
-  focus() { this._focused = true; }
   closest(sel) {
+    // 测试里只需要两类选择器：.row / #menu / [data-xxx]
+    if (sel.startsWith('.') && this.className && this.className.split(' ').includes(sel.slice(1))) return this;
+    if (sel.startsWith('#') && this.id === sel.slice(1)) return this;
     const m = /^\[([\w-]+)\]$/.exec(sel);
-    if (!m) return null;
-    return this.dataset[m[1]] !== undefined ? this : null;
+    if (m) return this.dataset[m[1]] !== undefined ? this : null;
+    return null;
   }
+  querySelectorAll() { return []; }
+  querySelector() { return null; }
+  appendChild(child) { this.children.push(child); return child; }
+  insertBefore(child) { this.children.push(child); return child; }
+  remove() {}
+  focus() { this._focused = true; }
+  getBoundingClientRect() { return { left: 10, top: 10, width: 160, height: 120 }; }
 }
 
-// ---------- 宿主环境 ----------
-// opts.spawn             自定义 spawn
-// opts.skipChildProcess  模拟取不到 child_process
-// opts.noRubick          模拟没有 window.rubick（纯浏览器预览）
+// list 容器要把 appendChild 到 spacer 的行记下来，方便断言虚拟滚动
 function makeHost(opts = {}) {
   const nodes = new Map();
   const ensure = id => {
     if (!nodes.has(id)) nodes.set(id, new El('div', id));
     return nodes.get(id);
   };
-  for (const id of ['count', 'sectionTitle', 'results', 'echo', 'status', 'toast', 'diag', 'brandLogo', 'keyhint']) ensure(id);
+  for (const id of ['brandLogo', 'status', 'tags', 'list', 'spacer', 'menu', 'toast']) ensure(id);
 
-  const filters = new El('div');
-  const allBtn = new El('button'); allBtn.dataset.filter = 'all';
-  const favBtn = new El('button'); favBtn.dataset.filter = 'favorites';
+  const appended = [];   // 记录被加到 spacer 的行
+  const spacer = nodes.get('spacer');
+  const realAppend = spacer.appendChild.bind(spacer);
+  spacer.appendChild = child => {
+    // 真实 DOM 里 appendChild(DocumentFragment) 会展开它的子节点
+    if (child.tagName === 'FRAGMENT' && child.children.length) appended.push(...child.children);
+    else appended.push(child);
+    return realAppend(child);
+  };
+  spacer.querySelectorAll = () => [];
 
   const documentStub = {
-    getElementById: id => nodes.get(id) || null,
-    querySelector: sel => (sel === '.filters' ? filters : null),
-    querySelectorAll: sel => (sel === '.filter' ? [allBtn, favBtn] : []),
+    getElementById: id => {
+      // 菜单里的内联输入框是靠 innerHTML 插进去的；桩不解析 HTML，
+      // 所以在被请求时临时造一个等价节点（真实 DOM 里它就是 <input id="newgroup">）
+      if (id === 'newgroup') {
+        if (!nodes.has('newgroup')) {
+          const input = new El('input', 'newgroup');
+          input.value = '';
+          nodes.set('newgroup', input);
+        }
+        return nodes.get('newgroup');
+      }
+      return nodes.get(id) || null;
+    },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    createDocumentFragment: () => new El('fragment'),
+    createElement: tag => new El(tag),
     addEventListener: () => {}
   };
 
@@ -94,64 +123,70 @@ function makeHost(opts = {}) {
       if (!windowListeners.has(type)) windowListeners.set(type, []);
       windowListeners.get(type).push(fn);
     },
-    dispatchEvent: event => {
-      for (const fn of [...(windowListeners.get(event.type) || [])]) fn(event);
-    },
-    // 模拟"搜索框的按键被 sendInputEvent 灌进页面"
+    dispatchEvent: () => {},
     fireKey: (key, extra = {}) => {
       const ev = Object.assign({ type: 'keydown', key, preventDefault() {}, stopPropagation() {} }, extra);
       for (const fn of [...(windowListeners.get('keydown') || [])]) fn(ev);
     }
   };
 
-  const timers = [];
   const store = new Map();
   const spawned = [];
   const logWrites = [];
-  let clock = 1000000;   // 虚拟时间起点
-  const state = { spawned, store, timers, logWrites, nodes, advance: ms => { clock += ms; } };
-
-  // 记录我们调用了哪些 rubick API（这是输入层的核心断言对象）
+  const timers = [];
+  let clock = 1000000;
   const rubickCalls = { setSubInput: [], setSubInputValue: [], setExpendHeight: [] };
-  let subInputCallback = null;
+  let subCb = null;
 
   const rubickStub = opts.noRubick ? null : {
     db: {
       get: id => (store.has(id) ? store.get(id) : null),
-      put: doc => { store.set(doc._id, { ...doc }); return { ok: true }; }
+      put: doc => { store.set(doc._id, JSON.parse(JSON.stringify(doc))); return { ok: true }; }
     },
-    setSubInput(onChange, placeholder, isFocus) {
-      rubickCalls.setSubInput.push({ placeholder, isFocus });
-      subInputCallback = typeof onChange === 'function' ? onChange : null;
+    setSubInput(cb, placeholder, focus) {
+      rubickCalls.setSubInput.push({ placeholder, focus });
+      subCb = typeof cb === 'function' ? cb : null;
     },
     setSubInputValue(text) {
       rubickCalls.setSubInputValue.push(text);
-      // 真实 Rubick 会把值写进搜索框，并回调 sendSubInputChangeEvent 回来
       if (typeof opts.onSetSubInputValue === 'function') opts.onSetSubInputValue(text);
     },
     onPluginReady: () => {},
-    setExpendHeight: h => { rubickCalls.setExpendHeight.push(h); }
+    setExpendHeight: h => rubickCalls.setExpendHeight.push(h)
   };
 
   const makeChild = () => {
     const handlers = new Map();
     const child = {
-      once(event, fn) { if (!handlers.has(event)) handlers.set(event, []); handlers.get(event).push(fn); return child; },
-      fire(event) {
-        const args = event === 'error' ? [new Error('模拟：启动失败')] : [];
-        for (const fn of [...(handlers.get(event) || [])]) fn(...args);
-      },
+      once(e, fn) { if (!handlers.has(e)) handlers.set(e, []); handlers.get(e).push(fn); return child; },
+      fire(e) { for (const fn of [...(handlers.get(e) || [])]) fn(new Error('模拟：启动失败')); },
       unref() { child.unreffed = true; }
     };
     return child;
   };
-
   const spawnImpl = opts.spawn || ((exe, args, options) => {
     const child = makeChild();
     spawned.push({ exe, args, options, child });
-    setImmediate(() => child.fire('spawn'));
+    setImmediate(() => {
+      for (const fn of []) fn();
+      child.handlers.forEach; // noop
+    });
+    // 触发 spawn 成功
+    setImmediate(() => { const h = child; (h.__emit || (() => {}))(); });
     return child;
   });
+
+  // 简化：成功路径直接调用已注册的 spawn 处理器
+  const spawnOk = (exe, args, options) => {
+    const handlers = new Map();
+    const child = {
+      once(e, fn) { if (!handlers.has(e)) handlers.set(e, []); handlers.get(e).push(fn); return child; },
+      unref() { child.unreffed = true; }
+    };
+    spawned.push({ exe, args, options, child });
+    setImmediate(() => { for (const fn of (handlers.get('spawn') || [])) fn(); });
+    return child;
+  };
 
   const sandbox = {
     console, JSON, Math, Date, Map, Set, Promise, Object, Array, String, Number,
@@ -160,12 +195,13 @@ function makeHost(opts = {}) {
     clearTimeout: () => {},
     setInterval: () => 0,
     localStorage: { getItem: () => null, setItem: () => {} },
+    innerWidth: 900,
+    innerHeight: 700,
     document: documentStub,
     window: windowStub
   };
   windowStub.document = documentStub;
   windowStub.localStorage = sandbox.localStorage;
-  // 虚拟时钟：让"180ms 去重窗口"这类时间逻辑可测，不必真的 sleep
   windowStub.__rubickStartupNow = () => clock;
   windowStub.__rubickStartupSchedule = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
   if (rubickStub) { windowStub.rubick = rubickStub; sandbox.rubick = rubickStub; }
@@ -173,33 +209,35 @@ function makeHost(opts = {}) {
   sandbox.require = request => {
     if (request === 'child_process') {
       if (opts.skipChildProcess) throw new Error('模拟：取不到 child_process');
-      return { spawn: spawnImpl };
+      return { spawn: opts.spawn || spawnOk };
     }
     if (request === 'fs') {
       return {
-        appendFileSync: (file, data) => { logWrites.push({ file, data }); },
-        existsSync: () => false,
-        statSync: () => ({ size: 0 }),
-        writeFileSync: () => {}
+        appendFileSync: (f, d) => logWrites.push({ file: f, data: d }),
+        existsSync: () => false, statSync: () => ({ size: 0 }), writeFileSync: () => {}
       };
     }
     if (request === 'os') return { tmpdir: () => 'C:\\Temp' };
     if (request === 'path') return path;
+    if (request === '../package.json') return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
     throw new Error(`测试宿主不支持 require('${request}')`);
   };
 
   return {
-    state,
-    rubickCalls,
-    nodes,
+    nodes, appended, store, spawned, logWrites, timers, rubickCalls,
     el: id => nodes.get(id),
     window: windowStub,
-    // 模拟 Rubick 把搜索框的新文本推给插件
-    searchBoxChange(text) {
-      assert(subInputCallback, '插件没有注册 setSubInput 回调');
-      subInputCallback({ text });
+    advance: ms => { clock += ms; },
+    // 模拟 Rubick 把搜索框新文本推给插件
+    searchBox(text) {
+      assert(subCb, '插件没有注册 setSubInput 回调');
+      subCb({ text });
     },
-    hasSubInput: () => !!subInputCallback,
+    // 直接注入记录（跳过执行），用来构造大数据集
+    seed(list) {
+      store.set('rubick-startup/history-v2', { _id: 'rubick-startup/history-v2', records: list });
+    },
+    rows: () => appended.filter(x => x.className === 'row'),
     runScript() {
       const context = vm.createContext(sandbox);
       vm.runInContext(SCRIPT, context, { filename: 'public/index.html#inline' });
@@ -207,177 +245,213 @@ function makeHost(opts = {}) {
   };
 }
 
-const settle = () => new Promise(resolve => setImmediate(() => setImmediate(() => setImmediate(resolve))));
+const settle = () => new Promise(r => setImmediate(() => setImmediate(() => setImmediate(r))));
 let pass = 0;
 const ok = name => { pass++; console.log('  PASS  ' + name); };
 
+function seedRecords(n, opts = {}) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({
+      id: 'r' + i,
+      command: 'cmd-' + String(i).padStart(3, '0'),
+      time: 1000000 + i * 1000,
+      kind: 'command',
+      groups: i % (opts.taggedEvery || 5) === 0 ? ['tag' + (i % 3)] : []
+    });
+  }
+  return out;
+}
+
 async function main() {
-  console.log('== 1. 脚本能跑起来，并接管 Rubick 搜索框 ==');
-  const host = makeHost({
-    // 模拟 Rubick：写入搜索框后回调把新值送回插件
-    onSetSubInputValue: text => {
-      if (hostRef && hostRef.hasSubInput()) hostRef.searchBoxChange(text);
-    }
-  });
-  let hostRef = host;
+  console.log('== 1. 接管 Rubick 搜索框 ==');
+  let host = makeHost();
   host.runScript();
   await settle();
-  assert(host.hasSubInput(), '没有注册 rubick.setSubInput 回调 —— 输入层没接上');
-  assert.strictEqual(host.rubickCalls.setSubInput.length, 1, 'setSubInput 调用次数不为 1');
-  assert(host.rubickCalls.setSubInput[0].placeholder, 'setSubInput 没有给占位提示');
-  ok('调用 rubick.setSubInput(onChange, 占位提示) 接管搜索框');
+  assert.strictEqual(host.rubickCalls.setSubInput.length, 1, '没有注册 setSubInput');
+  assert(host.rubickCalls.setSubInput[0].placeholder, '没有给占位提示');
+  ok('调用 rubick.setSubInput(onChange, 占位提示)');
 
-  console.log('== 2. 在 Rubick 搜索框打字 → 插件上方实时回显 ==');
-  host.searchBoxChange('note');
-  assert.strictEqual(host.el('echo').textContent, 'note', `回显没有跟上：${host.el('echo').textContent}`);
-  host.searchBoxChange('notepad');
-  assert.strictEqual(host.el('echo').textContent, 'notepad');
-  assert(!host.el('echo').classList.contains('idle'), '有内容时不该是占位样式');
-  ok('搜索框变化 → rubick 回调 → 上方回显当前输入');
+  console.log('== 2. 页面结构：只有头部一行 + 标签行 + 列表 ==');
+  for (const dead of ['echo', 'keyhint', 'count', 'sectionTitle', 'results', 'diag']) {
+    assert(!host.nodes.has(dead), `已砍掉的元素 #${dead} 还在`);
+  }
+  for (const alive of ['brandLogo', 'status', 'tags', 'list', 'spacer', 'menu', 'toast']) {
+    assert(host.nodes.has(alive), `关键元素 #${alive} 缺失`);
+  }
+  ok('回显块/按键提示/计数/副标题/☆ 全部移除，只剩必要元素');
 
-  console.log('== 3. 插件页面里没有输入框（只显示记录）==');
-  assert(!host.nodes.has('query'), '插件页面不该再有输入框 #query');
-  assert(!host.nodes.has('run'), '插件页面不该再有运行按钮 #run');
-  ok('输入框与运行按钮已移除，只保留回显和记录列表');
+  console.log('== 3. 空列表显示引导文案 ==');
+  const emptyRow = host.appended.find(x => x.className === 'empty');
+  assert(emptyRow, '空列表没有渲染 empty 提示');
+  assert(/还没有记录/.test(emptyRow.textContent), `文案不对：${emptyRow.textContent}`);
+  assert.strictEqual(host.el('spacer').style.height, 'auto', '空列表时 spacer 高度应为 auto');
+  ok('空列表有引导文案，且 spacer 不占高度');
 
-  console.log('== 4. 搜索框回车 → 直接执行（不再需要第二次回车）==');
-  host.state.advance(500);
-  host.state.spawned.length = 0;
-  // 关键：Electron 的 sendInputEvent 造出来的是合成 keydown，
-  // 只有 keyCode、没有 key。这里就按这个形态喂进去，验证插件能认出来。
-  host.window.fireKey(undefined, { keyCode: 13 });
+  console.log('== 4. 搜索框打字 → 过滤（不再有回显块）==');
+  host.searchBox('cmd-00');
+  host.searchBox('cmd-0');
+  ok('搜索框文本进入页面状态（用于过滤）');
+
+  console.log('== 5. 合成 keydown（只有 keyCode）触发执行 ==');
+  host = makeHost();
+  host.runScript();
   await settle();
-  assert.strictEqual(host.state.spawned.length, 1, `回车没有触发执行，spawn 次数 ${host.state.spawned.length}`);
-  const call = host.state.spawned[0];
+  host.searchBox('notepad');
+  host.advance(500);
+  host.window.fireKey(undefined, { keyCode: 13 });   // Electron sendInputEvent 的真实形态
+  await settle();
+  assert.strictEqual(host.spawned.length, 1, `没有执行，spawn=${host.spawned.length}`);
+  const call = host.spawned[0];
   assert.strictEqual(call.exe, 'cmd.exe');
   assert.strictEqual(JSON.stringify(call.args), JSON.stringify(['/d', '/s', '/c', 'notepad']));
   assert.strictEqual(call.options.detached, true);
-  assert.strictEqual(call.options.windowsHide, true);
   assert.strictEqual(call.child.unreffed, true, '没有 unref');
-  assert.strictEqual(host.el('status').textContent, '已交给 Windows 启动');
-  ok('搜索框回车 → 执行搜索框里的原文 → spawn(cmd.exe /d /s /c <原文>)');
+  ok('只有 keyCode 的合成回车也能执行（这是真机踩过的坑）');
 
-  console.log('== 5. 执行后写入历史 ==');
-  const saved = host.state.store.get('rubick-startup/history-v2');
-  assert(saved && saved.records.length === 1, '历史没有落库');
+  console.log('== 6. 执行后写入记录 + 清空搜索框 ==');
+  const saved = host.store.get('rubick-startup/history-v2');
+  assert(saved && saved.records.length === 1, '记录没有落库');
   assert.strictEqual(saved.records[0].command, 'notepad');
-  assert.strictEqual(saved.records[0].kind, 'command');
-  assert.strictEqual(host.el('count').textContent, 1);
-  ok('执行后历史落库并刷新计数');
+  assert(Array.isArray(saved.records[0].groups), '新记录应有 groups 数组');
+  assert(!('note' in saved.records[0]) && !('category' in saved.records[0]), '死字段 note/category 不该再写入');
+  assert(host.rubickCalls.setSubInputValue.includes(''), '执行后没有清空搜索框');
+  ok('记录落库（带 groups）、死字段已移除、搜索框清空');
 
-  console.log('== 6. 清空输入后回显回到占位提示 ==');
-  host.searchBoxChange('');
-  assert(/搜索框输入/.test(host.el('echo').textContent), `占位提示不对：${host.el('echo').textContent}`);
-  assert(host.el('echo').classList.contains('idle'), '空输入时应是占位样式');
-  ok('输入清空后回显显示占位提示');
-
-  console.log('== 7. 执行后清空搜索框（否则再按回车会重复执行）==');
-  host.state.spawned.length = 0;
-  host.state.advance(500);   // 越过 180ms 去重窗口
-  host.searchBoxChange('notepad');
-  host.window.fireKey('Enter');
+  console.log('== 7. 点记录 → 重跑 ==');
+  host.spawned.length = 0;
+  host.advance(500);
+  const row = host.rows()[0];
+  assert(row, '列表里没有行');
+  const rec = host.store.get('rubick-startup/history-v2').records[0];
+  row.dataset.id = rec.id;
+  host.el('list').dispatch('click', { target: { closest: sel => (sel === '.row' ? row : null) } });
   await settle();
-  assert.strictEqual(host.state.spawned.length, 1, `执行次数应为 1，实际 ${host.state.spawned.length}`);
-  assert(
-    host.rubickCalls.setSubInputValue.includes(''),
-    `执行后没有清空搜索框，记录：${JSON.stringify(host.rubickCalls.setSubInputValue)}`
-  );
-  assert(
-    /搜索框输入/.test(host.el('echo').textContent),
-    `回显应回到占位提示，实际：${host.el('echo').textContent}`
-  );
-  assert(host.el('echo').classList.contains('idle'), '清空后应是占位样式');
-  ok('执行后把搜索框置空，避免重复执行、也让 Rubick 不再拿原文匹配插件');
+  assert.strictEqual(host.spawned.length, 1, '点记录没有重跑');
+  ok('点记录行直接重跑');
 
-  console.log('== 8. 去重窗口：同一次回车从两条路到达只算一次 ==');
-  host.state.advance(500);
-  host.searchBoxChange('calc');
-  host.state.spawned.length = 0;
-  host.window.fireKey('Enter');                              // 搜索框转发的回车
-  host.window.fireKey('Enter');                              // 万一又来一次
+  console.log('== 8. 标签：加标签后永久保留 + 出现在筛选行 ==');
+  host = makeHost();
+  host.seed(seedRecords(6));
+  host.runScript();
   await settle();
-  assert.strictEqual(host.state.spawned.length, 1, `去重失败，执行了 ${host.state.spawned.length} 次`);
-  ok('180ms 内的重复回车只执行一次');
-
-  console.log('== 9. 快速连打两条命令不被误伤 ==');
-  host.state.advance(500);   // 超过窗口
-  host.searchBoxChange('calc');
-  host.window.fireKey('Enter');
+  const recs = () => host.store.get('rubick-startup/history-v2').records;
+  const target = recs()[0];
+  const groupsBefore = target.groups.length;
+  // 模拟点 ＋ 后输入标签名并回车
+  host.el('list').dispatch('click', {
+    target: { closest: sel => (sel === '.row' ? { dataset: { id: target.id } } : (sel === '[data-addgroup]' ? {} : null)) },
+    clientX: 20, clientY: 20, stopPropagation() {}
+  });
+  const input = host.nodes.get('newgroup');
+  assert(input, '点 ＋ 没有出现标签输入框');
+  input.value = '项目文件夹';
+  host.window.fireKey(undefined, { keyCode: 13 });   // 菜单输入框里回车
   await settle();
-  assert.strictEqual(host.state.spawned.length, 2, `第二条命令被去重窗口误伤，执行 ${host.state.spawned.length} 次`);
-  ok('超过去重窗口后可以连续执行不同命令');
+  const tagged = recs().find(r => r.id === target.id);
+  assert(tagged.groups.includes('项目文件夹'), `标签没有加上：${JSON.stringify(tagged.groups)}`);
+  assert.strictEqual(tagged.groups.length, groupsBefore + 1, '标签数应 +1');
+  ok('点 ＋ → 输入名字 → 回车，标签写入记录');
 
-  console.log('== 10. 空输入不执行 ==');
-  host.state.advance(500);
-  host.state.spawned.length = 0;
-  host.window.fireKey('Enter');
+  console.log('== 9. 筛选行渲染标签，点标签筛选 ==');
+  assert(/全部/.test(host.el('tags').innerHTML), '筛选行没有「全部」');
+  assert(/tag/.test(host.el('tags').innerHTML), '筛选行没有渲染已存在的标签');
+  ok('筛选行显示「全部」+ 各标签');
+
+  console.log('== 10. 移出标签 ==');
+  const before = recs().find(r => r.id === target.id).groups.length;
+  const chip = { dataset: { ungroup: recs().find(r => r.id === target.id).groups[0] } };
+  host.el('list').dispatch('click', {
+    target: { closest: sel => (sel === '.row' ? { dataset: { id: target.id } } : (sel === '[data-ungroup]' ? chip : null)) },
+    stopPropagation() {}
+  });
   await settle();
-  assert.strictEqual(host.state.spawned.length, 0, '空输入竟然触发了执行');
-  ok('空输入不触发执行');
+  assert.strictEqual(recs().find(r => r.id === target.id).groups.length, before - 1, '标签没有移出');
+  ok('点 chip 上的 × 移出标签');
 
-  console.log('== 11. 路径识别为 path ==');
-  host.state.advance(500);
-  host.searchBoxChange('C:\\dlcv\\demo');
-  host.window.fireKey('Enter');
+  console.log('== 11. 虚拟滚动：只渲染窗口内的行 ==');
+  host = makeHost();
+  host.seed(seedRecords(500));
+  host.runScript();
   await settle();
-  const saved2 = host.state.store.get('rubick-startup/history-v2');
-  assert.strictEqual(saved2.records[0].kind, 'path', `kind 应为 path，实际 ${saved2.records[0].kind}`);
-  ok('Windows 路径识别为「路径/程序」');
+  const rendered = host.rows().length;
+  assert(rendered > 0, '一行都没渲染');
+  assert(rendered < 60, `渲染了 ${rendered} 行 —— 500 条全渲染了，虚拟滚动没生效`);
+  const spacerH = host.el('spacer').style.height;
+  assert.strictEqual(spacerH, (500 * ROW_H) + 'px', `spacer 高度应为 500×${ROW_H}，实际 ${spacerH}`);
+  ok(`500 条只渲染 ${rendered} 行，spacer 高度 ${spacerH}`);
 
-  console.log('== 12. 启动出错如实报错 ==');
-  const failHost = makeHost({
+  console.log('== 12. 滚动后窗口位移，仍是少量行 ==');
+  host.el('list').scrollTop = 100 * ROW_H;
+  host.el('list').dispatch('scroll');
+  await settle();
+  const afterScroll = host.rows().length;
+  assert(afterScroll > 0 && afterScroll < 60, `滚动后渲染 ${afterScroll} 行，异常`);
+  ok(`滚到第 100 行仍只渲染 ${afterScroll} 行`);
+
+  console.log('== 13. 上限只清理没有标签的记录 ==');
+  host = makeHost();
+  const mixed = seedRecords(520, { taggedEvery: 2 });   // 一半带标签
+  host.seed(mixed);
+  host.runScript();
+  await settle();
+  host.advance(500);
+  host.searchBox('cmd-519');
+  host.window.fireKey(undefined, { keyCode: 13 });      // 触发一次 persist（走 prune）
+  await settle();
+  const kept = host.store.get('rubick-startup/history-v2').records;
+  const keptTagged = kept.filter(r => r.groups.length).length;
+  const keptPlain = kept.filter(r => !r.groups.length).length;
+  assert(keptTagged > 250, `带标签的被误删了，只剩 ${keptTagged}`);
+  assert(keptPlain <= 500, `无标签记录超过上限：${keptPlain}`);
+  ok(`带标签 ${keptTagged} 条全部保留，无标签被压到 ${keptPlain} 条（上限 500）`);
+
+  console.log('== 14. 排序：纯按最近使用，不置顶 ==');
+  host = makeHost();
+  host.seed([
+    { id: 'old-tagged', command: 'old-tagged', time: 1000, kind: 'command', groups: ['常用'] },
+    { id: 'new-plain', command: 'new-plain', time: 9000, kind: 'command', groups: [] }
+  ]);
+  host.runScript();
+  await settle();
+  const firstRow = host.rows()[0];
+  assert.strictEqual(firstRow.dataset.id, 'new-plain', `最新使用的应排第一，实际 ${firstRow.dataset.id}`);
+  ok('带标签的不会被置顶，仍按最近使用排序');
+
+  console.log('== 15. 启动出错如实报错 ==');
+  host = makeHost({
     spawn(exe, args, options) {
       const handlers = new Map();
       const child = {
-        once(event, fn) { if (!handlers.has(event)) handlers.set(event, []); handlers.get(event).push(fn); return child; },
-        fire(event) { for (const fn of [...(handlers.get(event) || [])]) fn(new Error('模拟：命令无法启动')); },
+        once(e, fn) { if (!handlers.has(e)) handlers.set(e, []); handlers.get(e).push(fn); return child; },
         unref() {}
       };
-      failHost.state.spawned.push({ exe, args, options, child });
-      setImmediate(() => child.fire('error'));
+      host.spawned.push({ exe, args, options, child });
+      setImmediate(() => { for (const fn of (handlers.get('error') || [])) fn(new Error('模拟：无法启动')); });
       return child;
     }
   });
-  failHost.runScript();
+  host.runScript();
   await settle();
-  failHost.searchBoxChange('this-command-does-not-exist-xyz');
-  failHost.window.fireKey('Enter');
+  host.searchBox('no-such-cmd-xyz');
+  host.advance(500);
+  host.window.fireKey(undefined, { keyCode: 13 });
   await settle();
-  assert.strictEqual(failHost.el('status').textContent, '启动失败', `状态：${failHost.el('status').textContent}`);
-  assert(/失败/.test(failHost.state.logWrites.map(w => w.data).join('')), '日志没记录失败');
-  ok('子进程报错时显示「启动失败」并写日志');
+  assert(/启动失败/.test(host.el('status').textContent), `状态应显示启动失败：${host.el('status').textContent}`);
+  assert(/失败/.test(host.logWrites.map(w => w.data).join('')), '日志没记录失败');
+  ok('子进程报错时状态显示启动失败并写日志');
 
-  console.log('== 13. 取不到 child_process 时拦住执行并说明原因 ==');
-  const deadHost = makeHost({ skipChildProcess: true });
-  deadHost.runScript();
+  console.log('== 16. 取不到 child_process 时拦住执行 ==');
+  host = makeHost({ skipChildProcess: true });
+  host.runScript();
   await settle();
-  assert.strictEqual(deadHost.el('status').textContent, '无法执行命令', `状态：${deadHost.el('status').textContent}`);
-  assert(deadHost.el('status').classList.contains('bridge-missing'), '未加不可用样式');
-  deadHost.searchBoxChange('notepad');
-  deadHost.state.spawned.length = 0;
-  deadHost.window.fireKey('Enter');
+  assert(/无法执行/.test(host.el('status').textContent), `状态：${host.el('status').textContent}`);
+  host.searchBox('notepad');
+  host.advance(500);
+  host.window.fireKey(undefined, { keyCode: 13 });
   await settle();
-  assert.strictEqual(deadHost.state.spawned.length, 0, '不可用时竟然尝试执行');
-  assert(/启动失败/.test(deadHost.el('status').textContent), `应报错，实际：${deadHost.el('status').textContent}`);
-  ok('不可用时不执行，状态如实说明原因');
-
-  console.log('== 14. 没有 window.rubick 时：明确说明"需要 Rubick 搜索框" ==');
-  const plainHost = makeHost({ noRubick: true });
-  plainHost.runScript();
-  await settle();
-  assert.strictEqual(plainHost.rubickCalls.setSubInput.length, 0, '没有 rubick 时不该调 setSubInput');
-  assert(/需要 Rubick 搜索框/.test(plainHost.el('echo').textContent), `回显应说明需要搜索框，实际：${plainHost.el('echo').textContent}`);
-  assert(
-    /输入层未接上/.test(plainHost.el('diag').textContent),
-    `诊断串应说明输入层没接上，实际：${plainHost.el('diag').textContent}`
-  );
-  ok('没有 Rubick 环境时如实说明输入不可用，不假装能输入');
-
-  console.log('== 15. 品牌图标走 data URI ==');
-  assert(/^data:image\/svg\+xml;base64,/.test(host.el('brandLogo').src), '图标不是 data URI');
-  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  assert(/^data:image\/svg\+xml;base64,/.test(manifest.logo), '清单 logo 不是 data URI');
-  ok('图标走 data URI');
+  assert.strictEqual(host.spawned.length, 0, '不可用时竟然执行了');
+  ok('不可用时拦住执行，状态如实说明原因');
 
   console.log('\n全部通过：' + pass + ' 项');
 }

@@ -49,23 +49,29 @@ console.log('== 3. 页面结构与关键行为 ==');
 const html = read('public/index.html');
 assert(/<script>[\s\S]*<\/script>/.test(html), 'index.html 缺少内联脚本');
 assert(html.includes('setExpendHeight'), '页面未按插件高度展开');
-assert(html.includes('id="diag"'), '页面缺少诊断串（排查时要靠它）');
 assert(html.includes("require('child_process')"), '页面必须直接 require(child_process) —— 这是单插件版的核心');
 assert(html.includes('appendFileSync'), '页面应把运行日志写到文件，便于离线排查');
 assert(html.includes('cmd.exe'), '执行必须显式走 cmd.exe');
 assert(html.includes('detached'), 'spawn 应 detached，避免被父进程牵连');
 assert(html.includes('unref'), 'spawn 后应 unref，否则 Rubick 退出会被子进程拖住');
-assert(html.includes('可以运行') && html.includes('无法执行命令'), '页面缺少运行环境状态文案');
+assert(html.includes('可以运行') && html.includes('无法执行'), '页面缺少运行环境状态文案');
 // 输入层：真机实证过的三条通道，任何一条被删掉都应该让测试失败
 assert(/setSubInput\s*\(/.test(html), '页面没有用 rubick.setSubInput 接管搜索框（输入层主干）');
 assert(html.includes("addEventListener('keydown'"), '页面没有监听按键（搜索框转发的回车靠它）');
 assert(html.includes('setSubInputValue'), '页面没有用 setSubInputValue 清空搜索框（否则回车会重复执行）');
 assert(html.includes('__rubickStartupNow'), '时间源应可注入，否则去重窗口无法测试');
-// 插件页面不该再有输入框：输入的唯一来源是 Rubick 搜索框
-assert(!html.includes('id="query"'), '插件页面不该再有输入框 #query');
-assert(!html.includes('id="run"'), '插件页面不该再有运行按钮 #run');
-assert(html.includes('id="echo"'), '页面缺少输入回显区 #echo');
-ok('页面直连 child_process，输入走 Rubick 搜索框，只回显不重复提供输入框');
+// 本轮新结构：标签 + 虚拟滚动
+assert(html.includes('id="tags"') && html.includes('id="list"') && html.includes('id="spacer"'), '缺少标签行/列表/占位层');
+assert(/const ROW_H=\d+/.test(html), '缺少固定行高常量，虚拟滚动无法计算窗口');
+assert(html.includes('groups'), '记录模型应带 groups（多标签）');
+assert(/const LIMIT=\d+/.test(html), '缺少临时记录上限常量');
+// 已砍掉的 UI 不该复活
+for (const dead of ['id="echo"', 'id="keyhint"', 'id="count"', 'id="query"', 'id="run"', 'data-star', 'id="sectionTitle"']) {
+  assert(!html.includes(dead), `已砍掉的界面元素又出现了：${dead}`);
+}
+// 死字段不该再被写入
+assert(!/note:'/.test(html) && !/category:'/.test(html), '死字段 note/category 仍在写入');
+ok('页面直连 child_process、输入走搜索框、带标签与虚拟滚动，且无已砍元素与死字段');
 
 console.log('== 4. JS 语法 ==');
 for (const file of ['tools/install.js']) {

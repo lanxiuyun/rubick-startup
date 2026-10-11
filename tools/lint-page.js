@@ -56,12 +56,26 @@ for (const [label, re] of [['records 状态', /let records=/g], ['subInputReady'
 
 // 5. 关键元素在 DOM 里必须各出现一次
 const missing = [];
-for (const id of ['echo', 'count', 'results', 'status', 'diag', 'toast', 'brandLogo', 'keyhint', 'sectionTitle']) {
+for (const id of ['brandLogo', 'status', 'tags', 'list', 'spacer', 'menu', 'toast']) {
   const n = html.split(`id="${id}"`).length - 1;
   if (n !== 1) missing.push(`${id}×${n}`);
 }
-if (!missing.length) pass('关键元素齐全（echo/count/results/status/diag/toast/brandLogo/keyhint/sectionTitle）');
+if (!missing.length) pass('关键元素齐全（brandLogo/status/tags/list/spacer/menu/toast）');
 else fail(`元素 id 数量异常：${missing.join(', ')}`);
+
+// 5b. 已砍掉的 UI 不该复活
+for (const dead of ['id="echo"', 'id="keyhint"', 'id="count"', 'id="sectionTitle"', 'data-star', 'filters']) {
+  if (html.includes(dead)) fail(`已砍掉的界面元素又出现了：${dead}`);
+}
+pass('回显块/按键提示/条数计数/☆收藏/筛选按钮 均未复活');
+
+// 5c. 虚拟滚动的两个前提：容器可滚动 + 行高固定
+if (/\.list\{[^}]*overflow-y:auto/.test(html)) pass('列表容器可滚动（虚拟滚动前提）');
+else fail('列表容器没有 overflow-y:auto，虚拟滚动会失效');
+if (/const ROW_H=\d+/.test(html)) pass('行高是常量（虚拟滚动靠它算窗口）');
+else fail('没有固定行高常量，虚拟滚动的窗口计算会错位');
+if (/\.chip\.more/.test(html)) pass('标签超出时有 +N 折叠（保证行高不被标签数撑破）');
+else fail('标签没有折叠机制，行高会随标签数变化，虚拟滚动会错位');
 
 // 6. 输入层三条通道都还在
 for (const [label, needle] of [
@@ -73,5 +87,4 @@ for (const [label, needle] of [
   else fail(`输入层缺少：${label}`);
 }
 
-console.log(bad ? `\n静态检查未通过：${bad} 处` : '\n静态检查全部通过');
-process.exitCode = bad ? 1 : 0;
+console.log(bad ? `\n静态检查未通过：${bad} 处` : '\n静态检查全部通过');process.exitCode = bad ? 1 : 0;

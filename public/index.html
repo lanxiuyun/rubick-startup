@@ -3,30 +3,80 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>启动收藏</title>
 <style>
-:root{color-scheme:light;--bg:#f5f7f4;--paper:#fff;--line:#e5e9e3;--text:#202820;--muted:#7b857b;--green:#548b45;--pale:#edf4e9;--red:#b84e48}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% -25%,#e9f2e4,transparent 55%),var(--bg);color:var(--text);font:14px/1.45 "Segoe UI","Microsoft YaHei",sans-serif}.shell{max-width:920px;margin:auto;padding:25px 28px 28px}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:37px;height:37px}.brand h1{font-size:21px;margin:0;font-weight:650;letter-spacing:-.035em}.brand p{font-size:12px;color:var(--muted);margin:2px 0 0}.stats{font:11px ui-monospace,Consolas,monospace;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 10px}.stats b{color:var(--green);font-size:15px;margin-right:4px}.runbox{background:var(--paper);border:1px solid #dce5d8;border-radius:12px;padding:12px;box-shadow:0 7px 25px #2637230b}.echo{display:flex;align-items:center;gap:12px;min-height:44px;border:1px solid var(--line);border-radius:8px;background:#fbfcfa;padding:0 14px}.echoicon{color:var(--green);font:20px ui-monospace,Consolas,monospace;font-weight:bold;flex:none}.echotext{font:15px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}.echotext.idle{color:#9aa79a}.echotext.bad{color:var(--red)}.keys{font:10px ui-monospace,Consolas,monospace;color:#8b958b;margin:8px 3px 1px}.keys kbd{font:inherit;background:#f3f5f2;border:1px solid #e2e7e0;border-radius:4px;padding:2px 5px;color:#62705f}.keys em{font-style:normal;color:#477a39}.sectionbar{display:flex;align-items:center;justify-content:space-between;margin:19px 2px 8px}.sectionbar strong{font-size:12px;color:#4e5c4d}.filters{display:flex;gap:5px}.filter{border:1px solid transparent;background:transparent;border-radius:20px;padding:5px 10px;color:#7d887d;font-size:11px;cursor:pointer}.filter.active{background:#eaf2e6;color:#4c7e3f}.results{display:grid;gap:6px;max-height:340px;overflow:auto}.row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid transparent;border-radius:8px;background:#ffffffa8;cursor:pointer;transition:.12s}.row:hover,.row.selected{background:#fff;border-color:#dce7d7;box-shadow:0 3px 10px #24351d0a}.row.selected{outline:2px solid #cfe1c7;outline-offset:-2px}.typeicon{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:#eef4ea;color:var(--green);font:13px ui-monospace,Consolas,monospace;flex:none}.typeicon.cmd{background:#eaf2e6}.entry{flex:1;min-width:0}.command{font:13px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:10px;margin-top:3px}.badge{border:1px solid var(--line);border-radius:20px;padding:1px 7px}.star{border:0;background:transparent;color:#c3ccc3;font-size:16px;cursor:pointer;padding:2px 4px}.star.on{color:#d9a85c}.empty{border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}.empty b{display:block;color:#5c6a5b;margin-bottom:5px}.footer{border-top:1px solid var(--line);margin-top:15px;padding-top:10px;color:#8b958b;font-size:10px;display:flex;justify-content:space-between;gap:10px}.diag{font:10px ui-monospace,Consolas,monospace;color:#9aa79a;margin-left:auto}.status{color:#a26926;cursor:pointer}.status.bridge-ok{color:#477a39}.status.bridge-missing{color:#b84e48}.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(20px);background:#24351d;color:#f2f7ef;font-size:12px;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+:root{color-scheme:light;--bg:#f4f6f3;--paper:#fff;--line:#e4e8e2;--text:#1f2720;--muted:#7c867c;--green:#548b45;--chip:#eef4ea;--red:#b84e48}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","Microsoft YaHei",sans-serif;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh;padding:8px 10px 6px}
+/* 头部：一行，尽量矮 */
+.head{display:flex;align-items:center;gap:7px;flex:none;height:22px;margin-bottom:6px}
+.head img{width:16px;height:16px;flex:none}
+.head h1{font-size:13px;font-weight:650;margin:0;letter-spacing:-.01em}
+.head .spacer{flex:1}
+.status{font:10px/1 ui-monospace,Consolas,monospace;color:var(--muted);cursor:pointer;max-width:60%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.status.ok{color:#5c8a4e}.status.bad{color:var(--red)}
+/* 标签筛选行 */
+.tags{display:flex;align-items:center;gap:4px;flex:none;height:22px;margin-bottom:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.tags::-webkit-scrollbar{display:none}
+.tag{border:1px solid var(--line);background:#fff;border-radius:20px;padding:2px 9px;color:#5f6b5e;font-size:11px;white-space:nowrap;cursor:pointer;flex:none;line-height:15px}
+.tag:hover{border-color:#c9d8c2}
+.tag.on{background:var(--chip);border-color:#c6ddba;color:#3f6b34;font-weight:600}
+.tag.empty{color:#a6b0a5;cursor:default;border-style:dashed}
+/* 列表 */
+.list{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;border-top:1px solid var(--line)}
+.spacer{position:relative;width:100%}
+.row{position:absolute;left:0;right:0;display:flex;align-items:flex-start;gap:5px;padding:4px 2px 4px 0;border-bottom:1px solid #f0f3ef;cursor:pointer}
+.row:hover{background:#fafcfa}
+.typeicon{width:15px;text-align:center;flex:none;color:#9aa79a;font:12px/1.35 ui-monospace,Consolas,monospace}
+.typeicon.cmd{color:var(--green)}
+.body{flex:1;min-width:0}
+.cmd{font:12px/18px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#243024}
+.chips{display:flex;align-items:center;gap:3px;height:16px;margin-top:1px;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:2px;background:var(--chip);border-radius:9px;padding:0 5px;height:15px;color:#4a7040;font-size:10px;white-space:nowrap;max-width:110px}
+.chip span{overflow:hidden;text-overflow:ellipsis}
+.chip .x{color:#8aa383;cursor:pointer;font-size:11px;line-height:1}
+.chip .x:hover{color:var(--red)}
+.chip.add{background:transparent;border:1px dashed #cfd8cc;color:#a2aca1;cursor:pointer}
+.chip.add:hover{border-color:#9fbb92;color:#5c8a4e}
+.chip.more{background:transparent;color:#a2aca1;padding:0 2px}
+.meta{font:10px/14px ui-monospace,Consolas,monospace;color:#aab4a9;flex:none;padding-top:1px}
+.empty{padding:22px 4px;text-align:center;color:var(--muted);font-size:12px}
+/* 右键/加标签菜单 */
+.menu{position:fixed;z-index:50;background:#fff;border:1px solid var(--line);border-radius:7px;box-shadow:0 8px 24px #22301c1f;padding:4px;min-width:150px;max-height:240px;overflow:auto;display:none}
+.menu.show{display:block}
+.menu .mi{padding:4px 8px;border-radius:4px;font-size:12px;cursor:pointer;white-space:nowrap;display:flex;justify-content:space-between;gap:10px}
+.menu .mi:hover{background:var(--chip)}
+.menu .sep{height:1px;background:var(--line);margin:4px 2px}
+.menu .mi.danger{color:var(--red)}
+.menu input{width:100%;border:1px solid var(--line);border-radius:4px;padding:3px 6px;font:12px inherit;outline:none}
+.toast{position:fixed;left:50%;bottom:12px;transform:translateX(-50%) translateY(14px);background:#22301c;color:#f2f7ef;font-size:11px;padding:6px 13px;border-radius:6px;opacity:0;pointer-events:none;transition:.18s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style></head>
-<body><main class="shell">
-<header class="header"><div class="brand"><img id="brandLogo" alt=""><div><h1>启动收藏</h1><p>直接在 Rubick 搜索框输入，回车运行 · 自动留下记录</p></div></div><div class="stats"><b id="count">0</b> 条记录</div></header>
-<section class="runbox"><div class="echo"><span class="echoicon">›_</span><span id="echo" class="echotext">在 Rubick 搜索框输入…</span></div><div class="keys" id="keyhint"></div></section>
-<div class="sectionbar"><strong id="sectionTitle">历史与收藏</strong><div class="filters"><button class="filter active" data-filter="all">全部</button><button class="filter" data-filter="favorites">收藏</button></div></div>
-<section id="results" class="results"></section>
-<footer class="footer"><span>回车执行输入内容；记录可点击重跑，点 ☆ 收藏。</span><span class="diag" id="diag"></span><span id="status" class="status" title="点击可重新检测运行环境">正在检测运行环境…</span></footer>
-</main><div class="toast" id="toast"></div>
+<body><div class="app">
+  <div class="head"><img id="brandLogo" alt=""><h1>启动收藏</h1><span class="spacer"></span><span id="status" class="status" title="点击重新检测"></span></div>
+  <div class="tags" id="tags"></div>
+  <div class="list" id="list"><div class="spacer" id="spacer"></div></div>
+</div>
+<div class="menu" id="menu"></div>
+<div class="toast" id="toast"></div>
 <script>
 (()=>{
- // 启动收藏 · 输入层接的是 Rubick 自己的搜索框
+ // 启动收藏 · 字符串管理 + 标签
  //
- // 实证（反编译 app.asar + 真机探测）：
- //   1. 搜索框每次变化都会 sendSync('sendSubInputChangeEvent',{text}) 给插件页面，
- //      插件通过 rubick.setSubInput(onChange) 就能拿到文本；onChange 是同步的。
- //   2. 搜索框的按键会被 sendPluginSomeKeyDownEvent 转发进插件页面，
- //      主进程用 Sr.getView().webContents.sendInputEvent 灌进来 —— 所以能收到回车。
- //   3. rubick.setSubInputValue(text) 能反向写入搜索框。
- //   4. @electron/remote 不可用（Cannot find module），所以读不到主窗口 DOM，别指望那条路。
- //   5. 插件页面 nodeIntegration:true + contextIsolation:false → 可直接 require child_process。
+ // 模型：列表里的每一项就是一条字符串（路径或命令）。
+ //   搜索框输入 → 回车运行 → 字符串进列表；给字符串打标签 → 永久保留。
+ //   标签显示在记录下方（chips），点标签筛选，点记录重跑。
+ //
+ // 输入层的实证（反编译 app.asar + 真机探测）：
+ //   - 搜索框内容经 rubick.setSubInput(onChange) 同步送来 {text}，每次变化都触发
+ //   - 搜索框的 Enter 被 sendInputEvent 转发进页面；合成事件只有 keyCode、没有 key
+ //   - rubick.setSubInputValue(text) 可反写搜索框（执行后清空用）
+ //   - @electron/remote 不可用；插件页 nodeIntegration:true 可直接 require
  const KEY='rubick-startup/history-v2';
+ const LIMIT=500;        // 只约束【没有标签】的临时记录；打过标签的永久保留
+ const ROW_H=41;         // 固定行高：命令行 18 + 标签行 16 + 内边距/边框 7
  const LOGO='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIHN0b3AtY29sb3I9IiM4ZmJkNzIiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM0Nzc4M2QiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE4IiBmaWxsPSJub25lIiBzdHJva2U9IiNlNWU5ZTMiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xOCAzMi41IDMyIDIwbDE0IDEyLjV2MTdhMi41IDIuNSAwIDAgMS0yLjUgMi41aC0yM2EyLjUgMi41IDAgMCAxLTIuNS0yLjV6IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjZykiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0yNyA1MlYzOWE1IDUgMCAwIDEgMTAgMHYxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDc3ODNkIiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGNpcmNsZSBjeD0iNDkiIGN5PSIxNiIgcj0iNSIgZmlsbD0iI2Q5YTg1YyIvPjwvc3ZnPg==';
- let records=[], filter='all', selected=-1, currentCommand='', subInputReady=false;
+ let records=[], activeGroup='', currentCommand='', subInputReady=false, rowsDirty=true;
+ let scrollTop=0, renderFrom=0, renderTo=0, menuTarget=null;
  const $=id=>document.getElementById(id);
  // ── 运行环境 ──────────────────────────────────────────────────
  const env={spawn:null,fs:null,logPath:null,reason:''};
@@ -45,10 +95,9 @@
    :'页面里没有 require（Rubick 未启用 nodeIntegration？）';
  }
  const rubick=(typeof window!=='undefined'&&window.rubick)?window.rubick:null;
- // 时间源可注入：生产用真实时钟，测试用虚拟时钟（否则 180ms 去重窗口会让测试变得又慢又脆）
+ // 时间源可注入：生产真实时钟，测试虚拟时钟（否则去重窗口会让测试又慢又脆）
  const now=(typeof window!=='undefined'&&typeof window.__rubickStartupNow==='function')?window.__rubickStartupNow:Date.now;
  const schedule=(typeof window!=='undefined'&&typeof window.__rubickStartupSchedule==='function')?window.__rubickStartupSchedule:setTimeout;
- window.__rubickStartupEnv={canRun,reason:env.reason,rubickInput:!!rubick,logPath:env.logPath};
  function logLine(kind,message){
   const line=new Date(now()).toISOString()+' ['+kind+'] '+message+'\n';
   try{console.info('[rubick-startup]',kind,message)}catch(e){}
@@ -57,21 +106,30 @@
  try{
   if(env.fs&&env.logPath){
    if(env.fs.existsSync(env.logPath)&&env.fs.statSync(env.logPath).size>256*1024)env.fs.writeFileSync(env.logPath,'');
-   logLine('session','打开插件（v0.4.0，输入层接 Rubick 搜索框）');
+   let version='?';
+   try{version=require('../package.json').version}catch(e){}
+   logLine('session','打开插件 v'+version);
   }
  }catch(e){}
- function diag(msg){try{const el=$('diag');if(el)el.textContent=msg}catch(e){}logLine('env',String(msg))}
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const fuzzy=(text,query)=>{let t=String(text||'').toLocaleLowerCase(),q=query.toLocaleLowerCase().trim();if(!q)return 1;if(t.includes(q))return 100-q.length;let ti=0,st=-1,gap=0,last=-1;for(const ch of q){const at=t.indexOf(ch,ti);if(at<0)return 0;if(st<0)st=at;if(last>=0)gap+=at-last-1;last=at;ti=at+1}return Math.max(1,65-st-gap)};
+ const groupsOf=r=>Array.isArray(r.groups)?r.groups:[];
+ const allGroups=()=>{const seen=new Map();records.forEach(r=>groupsOf(r).forEach(g=>seen.set(g,(seen.get(g)||0)+1)));return [...seen.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(x=>x[0])};
+ // ── 存储 ──────────────────────────────────────────────────────
  function load(){try{if(rubick&&rubick.db){const d=rubick.db.get(KEY);if(d&&Array.isArray(d.records))return d.records}}catch(e){}try{const d=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(d))return d}catch(e){}return []}
- function save(){try{if(rubick&&rubick.db){let old=null;try{old=rubick.db.get(KEY)}catch(e){}const doc={_id:KEY,records};if(old&&old._rev)doc._rev=old._rev;rubick.db.put(doc);return}}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(records))}catch(e){toast('保存记录失败')}}
- function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');schedule(()=>el.classList.remove('show'),2000)}
- function matches(){const q=currentCommand;return records.filter(r=>filter!=='favorites'||r.favorite).map((r,i)=>({r,i,score:Math.max(fuzzy(r.command,q),fuzzy(r.note,q),fuzzy(r.category,q))})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||b.r.time-a.r.time)}
- function render(){const list=matches();$('count').textContent=records.length;$('sectionTitle').textContent=filter==='favorites'?'收藏':'历史与收藏';if(!list.length){$('results').innerHTML=`<div class="empty"><b>${records.length?'没有匹配记录':'还没有运行记录'}</b>${records.length?'试试其他关键词，或切换筛选。':'在上方输入一条路径或命令，按 Enter 运行后就会自动记录。'}</div>`;selected=-1;return}if(selected>=list.length)selected=list.length-1;$('results').innerHTML=list.map((x,n)=>`<article class="row ${n===selected?'selected':''}" data-index="${n}"><div class="typeicon ${x.r.kind==='command'?'cmd':''}">${x.r.kind==='command'?'›_':'↗'}</div><div class="entry"><div class="command" title="${esc(x.r.command)}">${esc(x.r.command)}</div><div class="meta"><span>${new Date(x.r.time).toLocaleString()}</span>${x.r.note?`<span>${esc(x.r.note)}</span>`:''}<span class="badge">${x.r.kind==='command'?'运行项':'路径/程序'}</span></div></div><button class="star ${x.r.favorite?'on':''}" data-star="${esc(x.r.id)}" title="收藏">${x.r.favorite?'★':'☆'}</button></article>`).join('')}
+ function save(){try{if(rubick&&rubick.db){let old=null;try{old=rubick.db.get(KEY)}catch(e){}const doc={_id:KEY,records};if(old&&old._rev)doc._rev=old._rev;rubick.db.put(doc);return}}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(records))}catch(e){toast('保存失败')}}
+ function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');schedule(()=>el.classList.remove('show'),1800)}
  function guessKind(s){return /^[a-zA-Z]:[\\/]|^\\\\|^\.\.?[\\/]/.test(s.trim())?'path':'command'}
- // 直接执行：不等待目标程序退出，只报告启动请求是否被系统接受（Win+R 的语义）。
+ // 上限只作用于没有标签的临时记录；打了标签的永久保留
+ function prune(list){
+  const tagged=[],plain=[];
+  for(const r of list)(groupsOf(r).length?tagged:plain).push(r);
+  return [...tagged,...plain.slice(0,LIMIT)].sort((a,b)=>b.time-a.time);
+ }
+ function persist(){records=prune(records);save()}
+ // ── 运行 ──────────────────────────────────────────────────────
  function spawnCommand(command,cb){
-  if(!canRun){logLine('run','拒绝：'+(env.reason||'页面无法直接执行命令'));cb({ok:false,error:env.reason||'页面无法直接执行命令'});return}
+  if(!canRun){logLine('run','拒绝：'+(env.reason||'无法执行'));cb({ok:false,error:env.reason||'无法执行命令'});return}
   let child;
   try{
    child=env.spawn('cmd.exe',['/d','/s','/c',command],{detached:true,windowsHide:true,stdio:'ignore'});
@@ -83,98 +141,246 @@
    logLine('run',(result.ok?'已启动：':'失败：')+command.slice(0,160)+(result.ok?'':' · '+result.error));
    cb(result);
   };
-  // 事件回调参数不保证存在，一律防御
-  try{child.once('error',error=>once({ok:false,error:(error&&error.message)||'启动时发生未知错误'}))}catch(e){}
+  try{child.once('error',error=>once({ok:false,error:(error&&error.message)||'未知错误'}))}catch(e){}
   try{child.once('spawn',()=>{once({ok:true});try{child.unref()}catch(e){}})}catch(e){}
-  schedule(()=>once({ok:false,error:'启动请求超时，未收到系统响应'}),2500);
+  schedule(()=>once({ok:false,error:'启动请求超时'}),2500);
  }
- function remember(command){const stamp=now(),existing=records.find(r=>r.command===command);if(existing){existing.time=stamp;existing.kind=guessKind(command)}else records.unshift({id:`run-${stamp}-${Math.random().toString(36).slice(2,7)}`,command,time:stamp,favorite:false,kind:guessKind(command),note:'',category:''});records=records.slice(0,500);save();render()}
  let lastRun=0;
+ function remember(command){
+  const stamp=now();
+  const hit=records.find(r=>r.command===command);
+  if(hit){hit.time=stamp;hit.kind=guessKind(command);return hit}
+  const rec={id:'run-'+stamp+'-'+Math.random().toString(36).slice(2,7),command,time:stamp,kind:guessKind(command),groups:[]};
+  records.unshift(rec);
+  return rec;
+ }
  function launch(text){
-  // 关键：先同步取出原文。清空搜索框会触发回调，之后就不能再读 DOM 了。
+  // 同步取原文：清空搜索框会触发回调，之后不能再读状态
   const command=String(text??'').trim();
   if(!command){toast('先输入路径或命令');return}
   const ts=now();
   if(ts-lastRun<180)return;   // 同一次回车可能从两条路各到达一次
   lastRun=ts;
   remember(command);
-  // 执行后清空搜索框：既避免再按一次回车重复执行，
-  // 也避免原文继续参与 Rubick 的插件匹配（那正是"要按两次回车"的原因）。
+  persist();
+  renderAll();
   if(subInputReady&&rubick&&typeof rubick.setSubInputValue==='function'){
    try{rubick.setSubInputValue('')}catch(e){}
   }
-  $('status').textContent='正在运行…';
+  setStatus('正在运行…','');
   spawnCommand(command,result=>{
-   $('status').textContent=result.ok?'已交给 Windows 启动':'启动失败';
+   logLine('run-result',result.ok?'ok':'fail');
+   setStatus(result.ok?'已运行：'+command.slice(0,40):'启动失败：'+((result.error||'').slice(0,50)),'bad');
    toast(result.ok?'已提交给 Windows':'启动失败：'+(result.error||'未知错误'));
   });
  }
- // ── 输入层：输入只来自 Rubick 搜索框 ──────────────────────────
- // 插件页面不再放输入框，上方只回显当前输入。这样就不存在
- // "这个值到底是用户打的还是搜索框回放的"的歧义，也不需要回环防护。
- if(rubick&&typeof rubick.setSubInput==='function'){
-  try{
-   rubick.setSubInput(data=>{
-    // 实测载荷是 {text:"..."}
-    const text=data&&typeof data==='object'?(data.text??''):(data??'');
-    setCommand(text);
-   },'输入路径、程序名或命令，回车运行',true);
-   subInputReady=true;
-   diag('输入层：已接管 Rubick 搜索框');
-  }catch(e){
-   diag('输入层：接管搜索框失败 '+e.message);
-  }
+ // ── 列表：虚拟滚动（固定行高） ────────────────────────────────
+ function visible(){
+  const q=currentCommand.trim().toLowerCase();
+  return records
+   .filter(r=>!activeGroup||groupsOf(r).includes(activeGroup))
+   .map(r=>({r,score:q?Math.max(fuzzy(r.command,q),...groupsOf(r).map(g=>fuzzy(g,q))):1}))
+   .filter(x=>x.score>0)
+   .sort((a,b)=>b.r.time-a.r.time)
+   .map(x=>x.r);
  }
- // 上方只做回显，真正的输入在 Rubick 搜索框里
+ function rowHtml(r){
+  const groups=groupsOf(r);
+  const shown=groups.slice(0,2);
+  const chips=shown.map(g=>'<span class="chip" data-ungroup="'+esc(g)+'"><span>'+esc(g)+'</span><i class="x" data-ungroup="'+esc(g)+'">×</i></span>').join('')
+   +(groups.length>2?'<span class="chip more">+'+(groups.length-2)+'</span>':'')
+   +'<span class="chip add" data-addgroup="1">＋</span>';
+  return '<div class="body"><div class="cmd" title="'+esc(r.command)+'">'+esc(r.command)+'</div>'
+   +'<div class="chips">'+chips+'</div></div>'
+   +'<div class="meta">'+new Date(r.time).toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'})+'</div>';
+ }
+ function renderRows(){
+  const list=visible();
+  const total=list.length;
+  const spacer=$('spacer');
+  spacer.style.height=total?(total*ROW_H)+'px':'auto';
+  const viewport=$('list').clientHeight||0;
+  const from=Math.max(0,Math.floor(scrollTop/ROW_H)-2);
+  const to=Math.min(total,Math.ceil((scrollTop+viewport)/ROW_H)+2);
+  // 只有"数据变了"或"可见窗口真的移动了"才重建 DOM
+  if(!rowsDirty&&from===renderFrom&&to===renderTo)return;
+  rowsDirty=false;
+  renderFrom=from;renderTo=to;
+  const frag=document.createDocumentFragment();
+  if(!total){
+   const empty=document.createElement('div');
+   empty.className='empty';
+   empty.textContent=records.length?'没有匹配的记录':'还没有记录 —— 在 Rubick 搜索框输入命令后回车';
+   frag.appendChild(empty);
+  }
+  for(let i=from;i<to;i++){
+   const r=list[i];
+   const row=document.createElement('div');
+   row.className='row';
+   row.style.top=(i*ROW_H)+'px';
+   row.style.height=ROW_H+'px';
+   row.dataset.id=r.id;
+   row.innerHTML='<span class="typeicon '+(r.kind==='command'?'cmd':'')+'">'+(r.kind==='command'?'›_':'↗')+'</span>'+rowHtml(r);
+   frag.appendChild(row);
+  }
+  spacer.querySelectorAll('.row,.empty').forEach(el=>el.remove());
+  spacer.appendChild(frag);
+ }
+ function renderTags(){
+  const groups=allGroups();
+  const el=$('tags');
+  if(!groups.length){
+   el.innerHTML='<span class="tag empty">还没有标签 —— 点记录下方的 ＋ 添加</span>';
+   return;
+  }
+  el.innerHTML='<span class="tag'+(activeGroup?'':' on')+'" data-group="">全部</span>'
+   +groups.map(g=>'<span class="tag'+(activeGroup===g?' on':'')+'" data-group="'+esc(g)+'">'+esc(g)+'</span>').join('');
+ }
+ // 数据或过滤条件变了就标记重绘：比"比较窗口范围"可靠，空列表也能正确渲染
+ function renderAll(){rowsDirty=true;renderTags();renderRows()}
+ function setStatus(text,cls){
+  const el=$('status');
+  el.textContent=text||(canRun?(subInputReady?'可以运行':'输入层未接上'):('无法执行：'+env.reason));
+  el.classList.toggle('ok',cls==='ok'||(!cls&&canRun));
+  el.classList.toggle('bad',cls==='bad'||(!cls&&!canRun));
+ }
+ // ── 标签编辑 ──────────────────────────────────────────────────
+ function addGroup(rec,rawName){
+  const name=String(rawName||'').trim();
+  if(!name)return;
+  const groups=groupsOf(rec);
+  if(groups.includes(name))return;
+  rec.groups=[...groups,name];
+  persist();renderAll();
+  toast('已加入「'+name+'」');
+ }
+ function removeGroup(rec,name){
+  rec.groups=groupsOf(rec).filter(g=>g!==name);
+  persist();renderAll();
+ }
+ function hideMenu(){$('menu').classList.remove('show');menuTarget=null}
+ function showMenu(x,y,html){
+  const m=$('menu');
+  m.innerHTML=html;
+  m.classList.add('show');
+  const w=m.offsetWidth,h=m.offsetHeight;
+  m.style.left=Math.max(4,Math.min(x,innerWidth-w-4))+'px';
+  m.style.top=Math.max(4,Math.min(y,innerHeight-h-4))+'px';
+ }
+ // 记录行右键菜单：新建标签 / 从已有标签选 / 删除
+ function recordMenu(rec,x,y){
+  menuTarget=rec;
+  const groups=groupsOf(rec);
+  const avail=allGroups().filter(g=>!groups.includes(g));
+  const html='<div class="mi" data-act="newgroup">新建标签并加入…</div>'
+   +(avail.length?'<div class="sep"></div><div class="mi" data-act="none"><span style="color:#a2aca1">加入已有标签</span></div>'
+     +avail.map(g=>'<div class="mi" data-group="'+esc(g)+'">'+esc(g)+'</div>').join(''):'')
+   +(groups.length?'<div class="sep"></div><div class="mi" data-act="none"><span style="color:#a2aca1">移出标签</span></div>'
+     +groups.map(g=>'<div class="mi" data-ungroup="'+esc(g)+'">'+esc(g)+'</div>').join(''):'')
+   +'<div class="sep"></div><div class="mi danger" data-act="delete">删除这条记录</div>';
+  showMenu(x,y,html);
+ }
+ // 输入新标签名（菜单内联输入）
+ function promptGroup(rec,x,y){
+  menuTarget=rec;
+  const html='<input id="newgroup" placeholder="标签名，回车确认">';
+  if(x!==undefined)showMenu(x,y,html);
+  else{$('menu').innerHTML=html;$('menu').classList.add('show')}
+  const input=$('newgroup');
+  try{input.focus()}catch(e){}
+  input.addEventListener('keydown',ev=>{
+   if(isEnterKey(ev)){ev.preventDefault();addGroup(rec,input.value);hideMenu()}
+   else if(ev.key==='Escape')hideMenu();
+  });
+  input.addEventListener('click',ev=>ev.stopPropagation());
+ }
+ $('menu').addEventListener('click',e=>{
+  const item=e.target.closest('.mi');
+  if(!item||!menuTarget)return;
+  const rec=menuTarget;
+  if(item.dataset.group){addGroup(rec,item.dataset.group);hideMenu();return}
+  if(item.dataset.ungroup){removeGroup(rec,item.dataset.ungroup);hideMenu();return}
+  switch(item.dataset.act){
+   case 'delete':
+    records=records.filter(r=>r.id!==rec.id);persist();renderAll();hideMenu();toast('已删除');break;
+   case 'newgroup':{
+    const box=e.currentTarget.getBoundingClientRect();
+    promptGroup(rec,box.left,box.top);
+    break;
+   }
+   default:break;
+  }
+ });
+ document.addEventListener('click',e=>{if(!e.target.closest('#menu'))hideMenu()});
+ // ── 事件 ──────────────────────────────────────────────────────
  function setCommand(text){
   currentCommand=String(text??'');
-  const el=$('echo');
-  el.textContent=currentCommand||(subInputReady?'在 Rubick 搜索框输入…':'需要 Rubick 搜索框才能输入');
-  el.classList.toggle('idle',!currentCommand);
-  selected=-1;
-  render();
+  renderAll();                 // renderAll 内部会标记重绘
  }
- // 搜索框的按键会被 sendInputEvent 转发进插件页面。
- // 注意：这是 Electron 合成的 keydown，不一定带 key 属性，所以按多个特征判断，
- // 并把原始字段记进日志——出问题时能直接看到收到了什么，而不是靠猜。
  function isEnterKey(e){
   if(e.key==='Enter'||e.key==='Return')return true;
   if(e.code==='Enter'||e.code==='NumpadEnter')return true;
   if(e.keyCode===13||e.which===13)return true;
   return false;
  }
+ if(rubick&&typeof rubick.setSubInput==='function'){
+  try{
+   rubick.setSubInput(data=>{
+    const text=data&&typeof data==='object'?(data.text??''):(data??'');
+    setCommand(text);
+   },'输入路径、程序名或命令，回车运行',true);
+   subInputReady=true;
+  }catch(e){logLine('env','接管搜索框失败 '+e.message)}
+ }
+ // 搜索框按键被 sendInputEvent 转发进页面：合成事件只有 keyCode，没有 key
  window.addEventListener('keydown',e=>{
-  logLine('key','key='+JSON.stringify(e.key)+' code='+JSON.stringify(e.code)+' keyCode='+JSON.stringify(e.keyCode));
   if(isEnterKey(e)){
    e.preventDefault();
+   if($('menu').classList.contains('show')){
+    const input=$('newgroup');
+    if(input&&menuTarget){addGroup(menuTarget,input.value);hideMenu()}
+    return;
+   }
    launch(currentCommand);
   }else if(e.key==='Escape'||e.code==='Escape'||e.keyCode===27){
-   setCommand('');
+   hideMenu();setCommand('');
   }
  },true);
- $('results').addEventListener('click',e=>{
-  const star=e.target.closest('[data-star]');
-  if(star){e.stopPropagation();const r=records.find(x=>x.id===star.dataset.star);if(r){r.favorite=!r.favorite;save();render()}return}
-  const row=e.target.closest('[data-index]');
-  if(row){const item=matches()[Number(row.dataset.index)];if(item){setCommand(item.r.command);launch(item.r.command)}}
+ $('list').addEventListener('scroll',()=>{scrollTop=$('list').scrollTop;renderRows()});
+ $('list').addEventListener('click',e=>{
+  const row=e.target.closest('.row');
+  const rec=row?records.find(r=>r.id===row.dataset.id):null;
+  if(!rec)return;
+  const un=e.target.closest('[data-ungroup]');
+  if(un){e.stopPropagation();removeGroup(rec,un.dataset.ungroup);return}
+  if(e.target.closest('[data-addgroup]')){
+   e.stopPropagation();
+   promptGroup(rec,e.clientX,e.clientY);
+   return;
+  }
+  launch(rec.command);
  });
- document.querySelector('.filters').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;selected=-1;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));render()});
- // ── 状态 ──────────────────────────────────────────────────────
- function refreshStatus(){
-  const el=$('status');
-  const ready=canRun;
-  el.textContent=ready?'可以运行':'无法执行命令';
-  el.classList.toggle('bridge-ok',ready);
-  el.classList.toggle('bridge-missing',!ready);
-  diag(ready?('可直接执行 · '+(subInputReady?'输入走 Rubick 搜索框':'输入层未接上')):('不可用：'+env.reason));
- }
- $('status').addEventListener('click',()=>{refreshStatus();toast(canRun?(subInputReady?'可以运行：在 Rubick 搜索框输入后回车':'无法输入：搜索框回调没接上'):'无法执行：'+env.reason)});
- $('keyhint').innerHTML='<em>在 Rubick 搜索框输入</em>　 <kbd>Enter</kbd> 运行　 <kbd>Esc</kbd> 清空　 点记录直接重跑';
+ $('list').addEventListener('contextmenu',e=>{
+  const row=e.target.closest('.row');
+  if(!row)return;
+  const rec=records.find(r=>r.id===row.dataset.id);
+  if(!rec)return;
+  e.preventDefault();
+  recordMenu(rec,e.clientX,e.clientY);
+ });
+ $('tags').addEventListener('click',e=>{
+  const t=e.target.closest('[data-group]');
+  if(!t)return;
+  activeGroup=t.dataset.group||'';
+  renderAll();
+  $('list').scrollTop=0;scrollTop=0;
+ });
+ $('status').addEventListener('click',()=>{setStatus('','');toast(canRun?(subInputReady?'可以运行：在 Rubick 搜索框输入后回车':'输入层未接上'):('无法执行：'+env.reason))});
  try{$('brandLogo').src=LOGO}catch(e){}
  records=load();
  if(rubick&&typeof rubick.onPluginReady==='function'){
-  rubick.onPluginReady(()=>{records=load();render();try{rubick.setExpendHeight(570)}catch(e){}});
+  rubick.onPluginReady(()=>{records=load();renderAll();try{rubick.setExpendHeight(570)}catch(e){}});
  }
- render();setCommand('');refreshStatus();
+ renderAll();setStatus('','');
 })();
 </script></body></html>
