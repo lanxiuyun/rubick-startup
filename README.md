@@ -1,8 +1,8 @@
 # 启动收藏 · 一个像 Win+R 的 Rubick 插件
 
-在 Rubick 里输入**路径、程序名或命令**，按回车就跑；每次运行自动留记录，可模糊过滤、可收藏、可重跑。
+**直接在 Rubick 的搜索框里输入路径、程序名或命令，按回车就跑**；每次运行自动留记录，可模糊过滤、可收藏、可重跑。
 
-它替代的是 Windows 的「运行」对话框，不是文件夹收藏夹。
+它替代的是 Windows 的「运行」对话框，不是文件夹收藏夹。也不用先进插件再敲第二遍。
 
 - 搜索关键词：`运行`、`启动`、`start`、`fav`
 - 插件安装位置：`%APPDATA%\Rubick\rubick-plugins-new`（在 Rubick 4.3.8 上开发验证）
@@ -25,7 +25,7 @@ npm run install:rubick    # 装进 Rubick：建链接 + 写注册表
 
 | 显示 | 含义 |
 | --- | --- |
-| `可以运行` | 正常，输入 `notepad` 回车试 |
+| `可以运行` | 正常。在 Rubick 搜索框输入 `notepad` 回车即可 |
 | `无法执行命令` | 页面拿不到 `child_process`，看下面的排查 |
 
 点右下角状态可以**立即重新检测**（检测是同步的，不需要重启任何东西）。
@@ -39,13 +39,27 @@ npm run uninstall:rubick    # 从 Rubick 移除
 
 ---
 
-## 架构：一个插件，没有中间层
+## 怎么用
+
+1. 搜索框输入 **`fav`**（或 `运行`、`启动`、`start`）打开「启动收藏」
+2. 插件打开后，**继续在同一个搜索框里打字** —— 插件会实时收到
+3. 按 **`回车`** 执行
+
+插件里的那个输入框是**只读镜像**，只负责显示当前输入并让你一眼看到要跑什么。输入的唯一来源是 Rubick 搜索框，这样就不存在"两边同步、谁是真值"的歧义。
+
+历史记录在下方，点一下直接重跑，点右边的 `☆` 收藏。执行后搜索框会自动清空，避免再按一次回车重复执行。
+
+---
+
+## 架构：一个插件，两处机制
 
 ```
-public/index.html          UI 插件页面（Rubick 把它放在挂着主窗口的 BrowserView 里）
-      │  require('child_process').spawn('cmd.exe', ['/d','/s','/c', <原文>])
-      ▼
-Windows
+Rubick 搜索框  ──setSubInput(onChange)──►  插件页面（BrowserView）
+     ▲                                            │
+     └──────setSubInputValue(text)────────────────┘
+                                                  │ require('child_process').spawn
+                                                  ▼
+                                            cmd.exe /d /s /c <原文>
 ```
 
 Rubick 建插件视图时给的是 `nodeIntegration: true` + `contextIsolation: false`：
@@ -57,7 +71,26 @@ t = new e.BrowserView({ webPreferences: {
 }});
 ```
 
-所以页面里 `require` 直接可用，**不需要系统插件桥接**。这是真机实证过的（诊断串 `可直接执行`），不是推断。
+所以页面里 `require` 直接可用，**不需要系统插件桥接**。
+
+### 输入层是怎么接上的（都有实证，不是猜）
+
+| 机制 | 依据 |
+| --- | --- |
+| 搜索框内容 → 插件 | 搜索框组件把值 `sendSync('sendSubInputChangeEvent',{text})` 给插件；`rubick.setSubInput(onChange)` 注册的回调同步收到 `{text}`。**真机探测：每次按键都触发** |
+| 搜索框按键 → 插件 | 搜索框 keydown 时发 `sendPluginSomeKeyDownEvent`，主进程用 `Sr.getView().webContents.sendInputEvent` 灌进插件页面 → 插件 `window` 能收到 `Enter` |
+| 插件 → 搜索框 | `rubick.setSubInputValue(text)`；用来在执行后清空输入 |
+| 直读主窗口 DOM | **走不通** —— `@electron/remote` 在本版不可用（`Cannot find module`），真机探测确认 |
+
+因为按键只转发键码，`\`、`:` 这类字符**不能**靠按键重建文本 —— 文本一律走 `setSubInput` 回调。这是设计上的硬约束。
+
+**如果以后 Rubick 升级导致输入层失灵**，仓库里留了一套探测工具，可以重新问清楚协议：
+
+```powershell
+node tools/probe-setup.js install     # 装一个临时探测插件
+# 搜索 probe 打开，按提示在搜索框打字 / 按回车，看页面和 %TEMP%\rubick-startup-input-probe.log
+node tools/probe-setup.js uninstall   # 测完卸掉
+```
 
 ### 为什么不走"一个系统插件"那条路
 
@@ -158,14 +191,17 @@ getLocalPlugins()   // 只读 %APPDATA%\Rubick\rubick-plugins-new\rubick-local-p
 ```
 package.json              插件清单（pluginType: ui；Rubick 靠 features[].cmds 建索引）
 public/
-  index.html              界面 + 交互 + 执行，全在原生 JS 里，无框架、无依赖
+  index.html              界面 + 交互 + 输入层 + 执行，全在原生 JS 里，无框架、无依赖
 tools/
   install.js              安装 / 卸载 / 体检
+  probe-plugin/           临时探测插件：查清 Rubick 输入协议
+  probe-setup.js          探测插件的安装 / 卸载
   privacy-scan.js         发布前的隐私体检（扫绝对路径/邮箱/密钥）
+  history-scan.js         扫 git 历史里的隐私
 tests/
   run-all.js              npm test
-  static.test.js          清单、无桥接残留、安装器逻辑
-  ui.test.js              最小 DOM 下跑真实页面脚本，验证端到端链路
+  static.test.js          清单、无桥接残留、输入层关键调用、安装器逻辑
+  ui.test.js              最小 DOM + 虚拟时钟下跑真实页面脚本，验证端到端链路
 ```
 
 ---
@@ -174,7 +210,6 @@ tests/
 
 按优先级：
 
-1. 真机确认单插件版能跑（重构后必须重新验证一次）。
-2. 执行语义补齐：`$env:` 这类 PowerShell 写法、URL、文档关联。当前锚点是 `cmd.exe`，要更贴近 Win+R 可以换 `ShellExecuteW`。
-3. 历史管理：去重、常用排序、备注/分类编辑、导入 Win+R 旧历史。
-4. 全局热键：让运行框脱离 Rubick 主窗口直接呼出（走"系统插件 + 自建窗口"那条路）。
+1. 执行语义补齐：`$env:` 这类 PowerShell 写法、URL、文档关联。当前锚点是 `cmd.exe`，要更贴近 Win+R 可以换 `ShellExecuteW`。
+2. 历史上的备注/分类编辑、去重、常用排序、导入旧 Win+R 历史。
+3. 全局热键：让运行框脱离 Rubick 主窗口直接呼出（走"系统插件 + 自建窗口"那条路）。

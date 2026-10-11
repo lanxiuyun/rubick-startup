@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>输入通道探测</title>
+<style>body{font:12px/1.6 ui-monospace,Consolas,monospace;margin:0;padding:14px;background:#fff;color:#222}
+h1{font-size:15px;margin:0 0 8px}pre{white-space:pre-wrap;word-break:break-all;background:#f6f7f5;border:1px solid #e3e7e2;border-radius:6px;padding:10px;margin:0 0 8px}
+.key{color:#548b45}b{color:#b84e48}</style></head>
+<body>
+<h1>Rubick 输入通道探测</h1>
+<pre id="out">探测中…</pre>
+<pre id="keys"></pre>
+<script>
+const lines = [];
+const out = document.getElementById('out');
+const keysEl = document.getElementById('keys');
+function say(msg) { lines.push(msg); out.textContent = lines.join('\n'); }
+
+let fs = null, os = null, path = null, LOG = null;
+try { fs = require('fs'); os = require('os'); path = require('path'); LOG = path.join(os.tmpdir(), 'rubick-startup-input-probe.log'); } catch (e) {}
+function persist(msg) {
+  say(msg);
+  try { if (fs && LOG) fs.appendFileSync(LOG, new Date().toISOString() + ' ' + msg + '\n'); } catch (e) {}
+}
+try { if (fs && LOG) fs.writeFileSync(LOG, ''); } catch (e) {}
+
+// ---- 1. @electron/remote 与主窗口搜索框 ----
+let mainWin = null;
+try {
+  const remote = require('@electron/remote');
+  persist('@electron/remote: 可用');
+  const wins = remote.BrowserWindow.getAllWindows();
+  persist('窗口数量: ' + wins.length);
+  mainWin = wins[0] || null;
+  persist('主窗口: ' + (mainWin ? '有' : '无'));
+  if (mainWin && mainWin.webContents) persist('主窗口 URL: ' + mainWin.webContents.getURL());
+} catch (e) {
+  persist('@electron/remote 不可用: ' + e.message);
+}
+
+if (mainWin && mainWin.webContents) {
+  try {
+    const script = "(()=>{const el=document.getElementById('search');return el?{found:true,value:el.value,cls:el.className}:{found:false,docs:document.title}})()";
+    const info = mainWin.webContents.executeJavaScript(script);
+    if (info && typeof info.then === 'function') {
+      info.then(v => persist('搜索框探测(Promise): ' + JSON.stringify(v)))
+          .catch(e => persist('搜索框探测失败: ' + e.message));
+    } else {
+      persist('搜索框探测(同步): ' + JSON.stringify(info));
+    }
+  } catch (e) {
+    persist('executeJavaScript 抛错: ' + e.message);
+  }
+}
+
+// ---- 2. 搜索框转发的按键 ----
+const seen = [];
+window.addEventListener('keydown', e => {
+  const t = 'key="' + e.key + '" code="' + e.code + '" keyCode=' + e.keyCode;
+  seen.push(t);
+  keysEl.textContent = '【搜索框转发的按键 ' + seen.length + ' 次】\n' + seen.join('\n');
+}, true);
+
+// ---- 3. 支持的 API 路线：setSubInput / setSubInputValue ----
+let hookHits = 0;
+try {
+  persist('rubick API: ' + (typeof window.rubick));
+  persist('rubick 方法: ' + Object.keys(window.rubick || {}).join(', '));
+  window.rubick.setSubInput(text => {
+    hookHits++;
+    persist('onSubInputChange 回调 #' + hookHits + ': ' + JSON.stringify(text));
+  }, '探测：随便打几个字', true);
+  persist('setSubInput 已注册（占位符已改）');
+} catch (e) {
+  persist('setSubInput 失败: ' + e.message);
+}
+
+// ---- 4. 主动设值，看搜索框是否跟着变 ----
+setTimeout(() => {
+  try { window.rubick.setSubInputValue('PROBE-123'); persist('已 setSubInputValue("PROBE-123")'); }
+  catch (e) { persist('setSubInputValue 失败: ' + e.message); }
+}, 1200);
+
+// ---- 5. 轮询搜索框的值（若 remote 路可用）----
+let last = null;
+setInterval(() => {
+  if (!mainWin || !mainWin.webContents) return;
+  try {
+    const v = mainWin.webContents.executeJavaScript("(()=>{const el=document.getElementById('search');return el?el.value:null})()");
+    if (v && typeof v.then === 'function') {
+      v.then(val => {
+        if (val !== last) { last = val; persist('搜索框当前值: ' + JSON.stringify(val)); }
+      }).catch(() => {});
+    }
+  } catch (e) {}
+}, 800);
+
+persist('探测已启动，请在搜索框里打几个字，然后看这里的变化');
+</script>
+</body>
+</html>

@@ -3,33 +3,34 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>启动收藏</title>
 <style>
-:root{color-scheme:light;--bg:#f5f7f4;--paper:#fff;--line:#e5e9e3;--text:#202820;--muted:#7b857b;--green:#548b45;--pale:#edf4e9;--red:#b84e48}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% -25%,#e9f2e4,transparent 55%),var(--bg);color:var(--text);font:14px/1.45 "Segoe UI","Microsoft YaHei",sans-serif}.shell{max-width:920px;margin:auto;padding:25px 28px 28px}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:37px;height:37px}.brand h1{font-size:21px;margin:0;font-weight:650;letter-spacing:-.035em}.brand p{font-size:12px;color:var(--muted);margin:2px 0 0}.stats{font:11px ui-monospace,Consolas,monospace;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 10px}.stats b{color:var(--green);font-size:15px;margin-right:4px}.runbox{background:var(--paper);border:1px solid #dce5d8;border-radius:12px;padding:12px;box-shadow:0 7px 25px #2637230b}.inputrow{display:flex;gap:10px}.inputwrap{position:relative;flex:1}.inputwrap:before{content:"›_";position:absolute;left:13px;top:9px;color:var(--green);font:20px ui-monospace,Consolas,monospace;font-weight:bold}#query{width:100%;height:44px;border:1px solid var(--line);border-radius:8px;outline:none;background:#fbfcfa;padding:0 13px 0 45px;color:var(--text);font:15px ui-monospace,Consolas,"Microsoft YaHei",monospace}#query:focus{border-color:#91b682;box-shadow:0 0 0 3px #709f5d1c}.run{border:0;border-radius:8px;background:var(--green);color:#fff;font-weight:700;padding:0 20px;cursor:pointer}.run:hover{background:#477a39}.keys{font:10px ui-monospace,Consolas,monospace;color:#8b958b;margin:8px 3px 1px}.keys kbd{font:inherit;background:#f3f5f2;border:1px solid #e2e7e0;border-radius:4px;padding:2px 5px;color:#62705f}.sectionbar{display:flex;align-items:center;justify-content:space-between;margin:19px 2px 8px}.sectionbar strong{font-size:12px;color:#4e5c4d}.filters{display:flex;gap:5px}.filter{border:1px solid transparent;background:transparent;border-radius:20px;padding:5px 10px;color:#7d887d;font-size:11px;cursor:pointer}.filter.active{background:#eaf2e6;color:#4c7e3f}.results{display:grid;gap:6px;max-height:340px;overflow:auto}.row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid transparent;border-radius:8px;background:#ffffffa8;cursor:pointer;transition:.12s}.row:hover,.row.selected{background:#fff;border-color:#dce7d7;box-shadow:0 3px 10px #24351d0a}.row.selected{outline:2px solid #cfe1c7;outline-offset:-2px}.typeicon{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:#eef4ea;color:var(--green);font:13px ui-monospace,Consolas,monospace;flex:none}.typeicon.cmd{background:#eaf2e6}.entry{flex:1;min-width:0}.command{font:13px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:10px;margin-top:3px}.badge{border:1px solid var(--line);border-radius:20px;padding:1px 7px}.star{border:0;background:transparent;color:#c3ccc3;font-size:16px;cursor:pointer;padding:2px 4px}.star.on{color:#d9a85c}.empty{border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}.empty b{display:block;color:#5c6a5b;margin-bottom:5px}.footer{border-top:1px solid var(--line);margin-top:15px;padding-top:10px;color:#8b958b;font-size:10px;display:flex;justify-content:space-between;gap:10px}.diag{font:10px ui-monospace,Consolas,monospace;color:#9aa79a;margin-left:auto}.status{color:#a26926;cursor:pointer}.status.bridge-ok{color:#477a39}.status.bridge-missing{color:#b84e48}.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(20px);background:#24351d;color:#f2f7ef;font-size:12px;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+:root{color-scheme:light;--bg:#f5f7f4;--paper:#fff;--line:#e5e9e3;--text:#202820;--muted:#7b857b;--green:#548b45;--pale:#edf4e9;--red:#b84e48}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% -25%,#e9f2e4,transparent 55%),var(--bg);color:var(--text);font:14px/1.45 "Segoe UI","Microsoft YaHei",sans-serif}.shell{max-width:920px;margin:auto;padding:25px 28px 28px}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:37px;height:37px}.brand h1{font-size:21px;margin:0;font-weight:650;letter-spacing:-.035em}.brand p{font-size:12px;color:var(--muted);margin:2px 0 0}.stats{font:11px ui-monospace,Consolas,monospace;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 10px}.stats b{color:var(--green);font-size:15px;margin-right:4px}.runbox{background:var(--paper);border:1px solid #dce5d8;border-radius:12px;padding:12px;box-shadow:0 7px 25px #2637230b}.inputrow{display:flex;gap:10px}.inputwrap{position:relative;flex:1}.inputwrap:before{content:"›_";position:absolute;left:13px;top:9px;color:var(--green);font:20px ui-monospace,Consolas,monospace;font-weight:bold}#query{width:100%;height:44px;border:1px solid var(--line);border-radius:8px;outline:none;background:#fbfcfa;padding:0 13px 0 45px;color:var(--text);font:15px ui-monospace,Consolas,"Microsoft YaHei",monospace}#query:focus{border-color:#91b682;box-shadow:0 0 0 3px #709f5d1c}.run{border:0;border-radius:8px;background:var(--green);color:#fff;font-weight:700;padding:0 20px;cursor:pointer}.run:hover{background:#477a39}.keys{font:10px ui-monospace,Consolas,monospace;color:#8b958b;margin:8px 3px 1px}.keys kbd{font:inherit;background:#f3f5f2;border:1px solid #e2e7e0;border-radius:4px;padding:2px 5px;color:#62705f}.keys em{font-style:normal;color:#477a39}.sectionbar{display:flex;align-items:center;justify-content:space-between;margin:19px 2px 8px}.sectionbar strong{font-size:12px;color:#4e5c4d}.filters{display:flex;gap:5px}.filter{border:1px solid transparent;background:transparent;border-radius:20px;padding:5px 10px;color:#7d887d;font-size:11px;cursor:pointer}.filter.active{background:#eaf2e6;color:#4c7e3f}.results{display:grid;gap:6px;max-height:340px;overflow:auto}.row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid transparent;border-radius:8px;background:#ffffffa8;cursor:pointer;transition:.12s}.row:hover,.row.selected{background:#fff;border-color:#dce7d7;box-shadow:0 3px 10px #24351d0a}.row.selected{outline:2px solid #cfe1c7;outline-offset:-2px}.typeicon{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:#eef4ea;color:var(--green);font:13px ui-monospace,Consolas,monospace;flex:none}.typeicon.cmd{background:#eaf2e6}.entry{flex:1;min-width:0}.command{font:13px ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:10px;margin-top:3px}.badge{border:1px solid var(--line);border-radius:20px;padding:1px 7px}.star{border:0;background:transparent;color:#c3ccc3;font-size:16px;cursor:pointer;padding:2px 4px}.star.on{color:#d9a85c}.empty{border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}.empty b{display:block;color:#5c6a5b;margin-bottom:5px}.footer{border-top:1px solid var(--line);margin-top:15px;padding-top:10px;color:#8b958b;font-size:10px;display:flex;justify-content:space-between;gap:10px}.diag{font:10px ui-monospace,Consolas,monospace;color:#9aa79a;margin-left:auto}.status{color:#a26926;cursor:pointer}.status.bridge-ok{color:#477a39}.status.bridge-missing{color:#b84e48}.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(20px);background:#24351d;color:#f2f7ef;font-size:12px;padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style></head>
 <body><main class="shell">
-<header class="header"><div class="brand"><img id="brandLogo" alt=""><div><h1>启动收藏</h1><p>像运行框一样输入并启动 · 自动留下记录</p></div></div><div class="stats"><b id="count">0</b> 条记录</div></header>
-<section class="runbox"><div class="inputrow"><div class="inputwrap"><input id="query" autocomplete="off" autofocus placeholder="输入路径、程序名或命令，然后回车运行…"></div><button class="run" id="run">运行 ↵</button></div><div class="keys"><kbd>↑</kbd><kbd>↓</kbd> 选择历史并填入　 <kbd>Enter</kbd> 运行输入　 <kbd>Ctrl</kbd>+<kbd>K</kbd> 聚焦输入</div></section>
+<header class="header"><div class="brand"><img id="brandLogo" alt=""><div><h1>启动收藏</h1><p>直接在 Rubick 搜索框输入，回车运行 · 自动留下记录</p></div></div><div class="stats"><b id="count">0</b> 条记录</div></header>
+<section class="runbox"><div class="inputrow"><div class="inputwrap"><input id="query" autocomplete="off" placeholder="在 Rubick 搜索框输入，或在这里输入…"></div><button class="run" id="run">运行 ↵</button></div><div class="keys" id="keyhint"></div></section>
 <div class="sectionbar"><strong id="sectionTitle">历史与收藏</strong><div class="filters"><button class="filter active" data-filter="all">全部</button><button class="filter" data-filter="favorites">收藏</button></div></div>
 <section id="results" class="results"></section>
 <footer class="footer"><span>回车执行输入内容；历史记录可再次筛选、运行或收藏。</span><span class="diag" id="diag"></span><span id="status" class="status" title="点击可重新检测运行环境">正在检测运行环境…</span></footer>
 </main><div class="toast" id="toast"></div>
 <script>
 (()=>{
- // 启动收藏 · 单插件版
- // 架构说明：Rubick 把插件页面放在挂着主窗口的 BrowserView 里，并给了
- // nodeIntegration:true + contextIsolation:false。所以这个页面可以直接
- // require('electron') 和 require('child_process')，不需要系统插件桥接。
- // 真机实证（webContents URL = .../node_modules/rubick-startup/public/index.html）：
- //   通道:require · 握手成功 · IPC 可发 · 可直接执行
+ // 启动收藏 · 输入层接的是 Rubick 自己的搜索框
+ //
+ // 实证（反编译 app.asar + 真机探测）：
+ //   1. 搜索框每次变化都会 sendSync('sendSubInputChangeEvent',{text}) 给插件页面，
+ //      插件通过 rubick.setSubInput(onChange) 就能拿到文本；onChange 是同步的。
+ //   2. 搜索框的按键会被 sendPluginSomeKeyDownEvent 转发进插件页面，
+ //      主进程用 Sr.getView().webContents.sendInputEvent 灌进来 —— 所以能收到回车。
+ //   3. rubick.setSubInputValue(text) 能反向写入搜索框。
+ //   4. @electron/remote 不可用（Cannot find module），所以读不到主窗口 DOM，别指望那条路。
+ //   5. 插件页面 nodeIntegration:true + contextIsolation:false → 可直接 require child_process。
  const KEY='rubick-startup/history-v2';
  const LOGO='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIHN0b3AtY29sb3I9IiM4ZmJkNzIiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM0Nzc4M2QiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE4IiBmaWxsPSJub25lIiBzdHJva2U9IiNlNWU5ZTMiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xOCAzMi41IDMyIDIwbDE0IDEyLjV2MTdhMi41IDIuNSAwIDAgMS0yLjUgMi41aC0yM2EyLjUgMi41IDAgMCAxLTIuNS0yLjV6IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjZykiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0yNyA1MlYzOWE1IDUgMCAwIDEgMTAgMHYxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDc3ODNkIiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGNpcmNsZSBjeD0iNDkiIGN5PSIxNiIgcj0iNSIgZmlsbD0iI2Q5YTg1YyIvPjwvc3ZnPg==';
- let records=[], filter='all', selected=-1, pending=new Map();
+ let records=[], filter='all', selected=-1;
  const $=id=>document.getElementById(id);
  // ── 运行环境 ──────────────────────────────────────────────────
- // 唯一依赖：页面里能 require('child_process')。不满足就如实报错，绝不让用户
- // 以为命令发出去了（这是我们吃过一次亏的地方）。
- const env={spawn:null,ipc:null,fs:null,logPath:null,reason:''};
+ const env={spawn:null,fs:null,logPath:null,reason:''};
  try{if(typeof require==='function'){env.spawn=require('child_process').spawn}}catch(e){env.spawn=null}
- try{if(typeof require==='function'){env.ipc=require('electron').ipcRenderer}}catch(e){env.ipc=null}
  try{
   if(typeof require==='function'){
    env.fs=require('fs');
@@ -43,31 +44,32 @@
    ?'require 可用，但取不到 child_process'
    :'页面里没有 require（Rubick 未启用 nodeIntegration？）';
  }
- window.__rubickStartupEnv={canRun,reason:env.reason,logPath:env.logPath};
+ const rubick=(typeof window!=='undefined'&&window.rubick)?window.rubick:null;
+ // 时间源可注入：生产用真实时钟，测试用虚拟时钟（否则 180ms 去重窗口会让测试变得又慢又脆）
+ const now=(typeof window!=='undefined'&&typeof window.__rubickStartupNow==='function')?window.__rubickStartupNow:Date.now;
+ const schedule=(typeof window!=='undefined'&&typeof window.__rubickStartupSchedule==='function')?window.__rubickStartupSchedule:setTimeout;
+ window.__rubickStartupEnv={canRun,reason:env.reason,rubickInput:!!rubick,logPath:env.logPath};
  function logLine(kind,message){
-  const line=new Date().toISOString()+' ['+kind+'] '+message+'\n';
+  const line=new Date(now()).toISOString()+' ['+kind+'] '+message+'\n';
   try{console.info('[rubick-startup]',kind,message)}catch(e){}
   try{if(env.fs&&env.logPath)env.fs.appendFileSync(env.logPath,line)}catch(e){}
  }
- // 每次打开插件写一条分隔，日志滚动但不至于无限增长
  try{
   if(env.fs&&env.logPath){
    if(env.fs.existsSync(env.logPath)&&env.fs.statSync(env.logPath).size>256*1024)env.fs.writeFileSync(env.logPath,'');
-   logLine('session','打开插件（v0.3.0）');
+   logLine('session','打开插件（v0.4.0，输入层接 Rubick 搜索框）');
   }
  }catch(e){}
  function diag(msg){try{const el=$('diag');if(el)el.textContent=msg}catch(e){}logLine('env',String(msg))}
- logLine('env',(canRun?'可直接执行':'不可执行：'+env.reason)+' · IPC '+(env.ipc?'可用':'不可用')+' · 日志 '+(env.logPath||'不可写'));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const fuzzy=(text,query)=>{let t=String(text||'').toLocaleLowerCase(),q=query.toLocaleLowerCase().trim();if(!q)return 1;if(t.includes(q))return 100-q.length;let ti=0,st=-1,gap=0,last=-1;for(const ch of q){const at=t.indexOf(ch,ti);if(at<0)return 0;if(st<0)st=at;if(last>=0)gap+=at-last-1;last=at;ti=at+1}return Math.max(1,65-st-gap)};
- function load(){try{if(window.rubick&&rubick.db){const d=rubick.db.get(KEY);if(d&&Array.isArray(d.records))return d.records}}catch(e){}try{const d=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(d))return d}catch(e){}return []}
- function save(){try{if(window.rubick&&rubick.db){let old=null;try{old=rubick.db.get(KEY)}catch(e){}const doc={_id:KEY,records};if(old&&old._rev)doc._rev=old._rev;rubick.db.put(doc);return}}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(records))}catch(e){toast('保存记录失败')}}
- function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000)}
+ function load(){try{if(rubick&&rubick.db){const d=rubick.db.get(KEY);if(d&&Array.isArray(d.records))return d.records}}catch(e){}try{const d=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(d))return d}catch(e){}return []}
+ function save(){try{if(rubick&&rubick.db){let old=null;try{old=rubick.db.get(KEY)}catch(e){}const doc={_id:KEY,records};if(old&&old._rev)doc._rev=old._rev;rubick.db.put(doc);return}}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(records))}catch(e){toast('保存记录失败')}}
+ function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');schedule(()=>el.classList.remove('show'),2000)}
  function matches(){const q=$('query').value;return records.filter(r=>filter!=='favorites'||r.favorite).map((r,i)=>({r,i,score:Math.max(fuzzy(r.command,q),fuzzy(r.note,q),fuzzy(r.category,q))})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||b.r.time-a.r.time)}
  function render(){const list=matches();$('count').textContent=records.length;$('sectionTitle').textContent=filter==='favorites'?'收藏':'历史与收藏';if(!list.length){$('results').innerHTML=`<div class="empty"><b>${records.length?'没有匹配记录':'还没有运行记录'}</b>${records.length?'试试其他关键词，或切换筛选。':'在上方输入一条路径或命令，按 Enter 运行后就会自动记录。'}</div>`;selected=-1;return}if(selected>=list.length)selected=list.length-1;$('results').innerHTML=list.map((x,n)=>`<article class="row ${n===selected?'selected':''}" data-index="${n}"><div class="typeicon ${x.r.kind==='command'?'cmd':''}">${x.r.kind==='command'?'›_':'↗'}</div><div class="entry"><div class="command" title="${esc(x.r.command)}">${esc(x.r.command)}</div><div class="meta"><span>${new Date(x.r.time).toLocaleString()}</span>${x.r.note?`<span>${esc(x.r.note)}</span>`:''}<span class="badge">${x.r.kind==='command'?'运行项':'路径/程序'}</span></div></div><button class="star ${x.r.favorite?'on':''}" data-star="${esc(x.r.id)}" title="收藏">${x.r.favorite?'★':'☆'}</button></article>`).join('')}
  function guessKind(s){return /^[a-zA-Z]:[\\/]|^\\\\|^\.\.?[\\/]/.test(s.trim())?'path':'command'}
- // 直接执行：不等待目标程序退出（GUI 程序可能一直不结束），
- // 只报告"启动请求是否被系统接受"，这正是 Win+R 的语义。
+ // 直接执行：不等待目标程序退出，只报告启动请求是否被系统接受（Win+R 的语义）。
  function spawnCommand(command,cb){
   if(!canRun){logLine('run','拒绝：'+(env.reason||'页面无法直接执行命令'));cb({ok:false,error:env.reason||'页面无法直接执行命令'});return}
   let child;
@@ -81,21 +83,113 @@
    logLine('run',(result.ok?'已启动：':'失败：')+command.slice(0,160)+(result.ok?'':' · '+result.error));
    cb(result);
   };
-  // 事件回调里的参数不一定存在（不同 Electron/测试桩行为不同），一律做防御
+  // 事件回调参数不保证存在，一律防御
   try{child.once('error',error=>once({ok:false,error:(error&&error.message)||'启动时发生未知错误'}))}catch(e){}
   try{child.once('spawn',()=>{once({ok:true});try{child.unref()}catch(e){}})}catch(e){}
-  setTimeout(()=>once({ok:false,error:'启动请求超时，未收到系统响应'}),2500);
+  schedule(()=>once({ok:false,error:'启动请求超时，未收到系统响应'}),2500);
  }
- function launch(text){const command=text.trim();if(!command){toast('先输入路径或命令');return}const now=Date.now(),existing=records.find(r=>r.command===command);if(existing){existing.time=now;existing.kind=guessKind(command)}else records.unshift({id:`run-${now}-${Math.random().toString(36).slice(2,7)}`,command,time:now,favorite:false,kind:guessKind(command),note:'',category:''});records=records.slice(0,500);save();render();$('status').textContent='正在运行…';spawnCommand(command,result=>{$('status').textContent=result.ok?'已交给 Windows 启动':'启动失败';toast(result.ok?'已提交给 Windows':'启动失败：'+(result.error||'未知错误'))});$('query').focus()}
- $('query').addEventListener('input',()=>{selected=-1;render()});$('run').onclick=()=>launch($('query').value);$('query').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();launch($('query').value)}else if(e.key==='ArrowDown'||e.key==='ArrowUp'){const list=matches();if(!list.length)return;e.preventDefault();selected=e.key==='ArrowDown'?Math.min(selected+1,list.length-1):Math.max(selected<=0?0:selected-1,0);$('query').value=list[selected].r.command;render()}});
- $('results').addEventListener('click',e=>{const star=e.target.closest('[data-star]');if(star){e.stopPropagation();const r=records.find(x=>x.id===star.dataset.star);if(r){r.favorite=!r.favorite;save();render()}return}const row=e.target.closest('[data-index]');if(row){const item=matches()[Number(row.dataset.index)];if(item){$('query').value=item.r.command;launch(item.r.command)}}});
- document.querySelector('.filters').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;selected=-1;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));render()});document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('query').focus()}if(e.key==='Escape'){$('query').value='';selected=-1;render()}});
- // ── 状态显示 ──────────────────────────────────────────────────
- // 这里的检测是同步的（能力在脚本开头就已确定），所以点一下能立刻刷新，
- // 用户不需要重启任何东西。
- function refreshStatus(){const el=$('status');el.textContent=canRun?'可以运行':'无法执行命令';el.classList.toggle('bridge-ok',canRun);el.classList.toggle('bridge-missing',!canRun);diag(canRun?('可直接执行 · '+(env.ipc?'IPC 可用':'IPC 不可用')):('不可用：'+env.reason))}
- $('status').addEventListener('click',()=>{refreshStatus();toast(canRun?'可以运行，直接输入命令回车即可':'无法执行：'+env.reason)});
+ function remember(command){const stamp=now(),existing=records.find(r=>r.command===command);if(existing){existing.time=stamp;existing.kind=guessKind(command)}else records.unshift({id:`run-${stamp}-${Math.random().toString(36).slice(2,7)}`,command,time:stamp,favorite:false,kind:guessKind(command),note:'',category:''});records=records.slice(0,500);save();render()}
+ let lastRun=0;
+ function launch(text){
+  // 关键：先同步取出原文。清空搜索框会触发回调，之后就不能再读 DOM 了。
+  const command=String(text??'').trim();
+  if(!command){toast('先输入路径或命令');return}
+  const ts=now();
+  if(ts-lastRun<180)return;   // 同一次回车可能从两条路各到达一次
+  lastRun=ts;
+  remember(command);
+  // 执行后清空搜索框：既避免再按一次回车重复执行，
+  // 也避免原文继续参与 Rubick 的插件匹配（那正是"要按两次回车"的原因）。
+  if(subInputReady&&rubick&&typeof rubick.setSubInputValue==='function'){
+   try{rubick.setSubInputValue('')}catch(e){}
+  }
+  $('status').textContent='正在运行…';
+  spawnCommand(command,result=>{
+   $('status').textContent=result.ok?'已交给 Windows 启动':'启动失败';
+   toast(result.ok?'已提交给 Windows':'启动失败：'+(result.error||'未知错误'));
+  });
+  $('query').focus();
+ }
+ // ── 输入层：单向镜像 ──────────────────────────────────────────
+ // 设计选择：输入的唯一来源是 Rubick 搜索框，插件里的框只显示、不改值。
+ // 这样就不存在"这个值到底是用户打的还是搜索框回放的"的歧义，
+ // 也就不需要复杂的回环防护。没有 Rubick 时（浏览器预览）才允许直接输入。
+ let subInputReady=false;
+ if(rubick&&typeof rubick.setSubInput==='function'){
+  try{
+   rubick.setSubInput(data=>{
+    // 实测载荷是 {text:"..."}
+    const text=data&&typeof data==='object'?(data.text??''):(data??'');
+    mirrorQuery(text);
+   },'输入路径、程序名或命令，回车运行',true);
+   subInputReady=true;
+   diag('输入层：已接管 Rubick 搜索框');
+  }catch(e){
+   diag('输入层：接管搜索框失败 '+e.message);
+  }
+ }
+ function mirrorQuery(text){
+  const value=String(text??'');
+  if($('query').value!==value)$('query').value=value;
+  selected=-1;
+  render();
+ }
+ // 用了 Rubick 搜索框就把镜像框设为只读，避免用户在一个"改了也不生效"的框里打字
+ try{
+  if(subInputReady){
+   $('query').readOnly=true;
+   $('query').placeholder='（在上面 Rubick 搜索框里输入）';
+  }
+ }catch(e){}
+ // 搜索框的按键会被 sendInputEvent 转发进插件页面（含回车）
+ window.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+   e.preventDefault();
+   launch($('query').value);
+  }else if(e.key==='Escape'){
+   mirrorQuery('');
+  }
+ },true);
+ // 没有 Rubick 搜索框时，插件自己的输入框才是输入源
+ $('query').addEventListener('input',e=>{
+  if(subInputReady)return;
+  const value=(e&&e.target&&'value' in e.target)?e.target.value:$('query').value;
+  if($('query').value!==value)$('query').value=value;
+  selected=-1;render();
+ });
+ $('query').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();launch($('query').value)}
+  else if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+   const list=matches();if(!list.length)return;
+   e.preventDefault();
+   selected=e.key==='ArrowDown'?Math.min(selected+1,list.length-1):Math.max(selected<=0?0:selected-1,0);
+   mirrorQuery(list[selected].r.command);
+  }
+ });
+ $('run').onclick=()=>launch($('query').value);
+ $('results').addEventListener('click',e=>{
+  const star=e.target.closest('[data-star]');
+  if(star){e.stopPropagation();const r=records.find(x=>x.id===star.dataset.star);if(r){r.favorite=!r.favorite;save();render()}return}
+  const row=e.target.closest('[data-index]');
+  if(row){const item=matches()[Number(row.dataset.index)];if(item){mirrorQuery(item.r.command);launch(item.r.command)}}
+ });
+ document.querySelector('.filters').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;selected=-1;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));render()});
+ // ── 状态 ──────────────────────────────────────────────────────
+ function refreshStatus(){
+  const el=$('status');
+  const ready=canRun;
+  el.textContent=ready?'可以运行':'无法执行命令';
+  el.classList.toggle('bridge-ok',ready);
+  el.classList.toggle('bridge-missing',!ready);
+  diag(ready?('可直接执行 · '+(rubick?'输入走 Rubick 搜索框':'独立输入框')):('不可用：'+env.reason));
+ }
+ $('status').addEventListener('click',()=>{refreshStatus();toast(canRun?(rubick?'可以运行：在 Rubick 搜索框输入后回车':'可以运行：在输入框输入后回车'):'无法执行：'+env.reason)});
+ $('keyhint').innerHTML='<em>在 Rubick 搜索框输入</em>　 <kbd>Enter</kbd> 运行　 <kbd>↑</kbd><kbd>↓</kbd> 选历史　 <kbd>Esc</kbd> 清空';
  try{$('brandLogo').src=LOGO}catch(e){}
- records=load();if(window.rubick&&rubick.onPluginReady)rubick.onPluginReady(()=>{records=load();render();try{rubick.setExpendHeight(570)}catch(e){}});render();$('query').focus();refreshStatus();
+ records=load();
+ if(rubick&&typeof rubick.onPluginReady==='function'){
+  rubick.onPluginReady(()=>{records=load();render();try{rubick.setExpendHeight(570)}catch(e){}});
+ }
+ render();refreshStatus();
 })();
 </script></body></html>

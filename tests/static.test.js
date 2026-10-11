@@ -51,13 +51,17 @@ assert(/<script>[\s\S]*<\/script>/.test(html), 'index.html 缺少内联脚本');
 assert(html.includes('setExpendHeight'), '页面未按插件高度展开');
 assert(html.includes('id="diag"'), '页面缺少诊断串（排查时要靠它）');
 assert(html.includes("require('child_process')"), '页面必须直接 require(child_process) —— 这是单插件版的核心');
-assert(!/ipcRenderer\.send\('rubick-startup:run'/.test(html), '页面不该再往桥接发运行请求');
 assert(html.includes('appendFileSync'), '页面应把运行日志写到文件，便于离线排查');
 assert(html.includes('cmd.exe'), '执行必须显式走 cmd.exe');
 assert(html.includes('detached'), 'spawn 应 detached，避免被父进程牵连');
 assert(html.includes('unref'), 'spawn 后应 unref，否则 Rubick 退出会被子进程拖住');
 assert(html.includes('可以运行') && html.includes('无法执行命令'), '页面缺少运行环境状态文案');
-ok('页面直连 child_process，含状态/诊断/日志/状态文案');
+// 输入层：真机实证过的三条通道，任何一条被删掉都应该让测试失败
+assert(/setSubInput\s*\(/.test(html), '页面没有用 rubick.setSubInput 接管搜索框（输入层主干）');
+assert(html.includes("addEventListener('keydown'"), '页面没有监听搜键（搜索框转发的回车靠它）');
+assert(html.includes('setSubInputValue'), '页面没有用 setSubInputValue 清空搜索框（否则回车会重复执行）');
+assert(html.includes('__rubickStartupNow'), '时间源应可注入，否则去重窗口无法测试');
+ok('页面直连 child_process，输入走 Rubick 搜索框，含状态/诊断/日志/可注入时钟');
 
 console.log('== 4. JS 语法 ==');
 for (const file of ['tools/install.js']) {

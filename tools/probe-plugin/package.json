@@ -1,0 +1,15 @@
+{
+  "name": "rubick-startup-probe",
+  "pluginName": "启动收藏·输入探测",
+  "description": "临时探测插件：查清 Rubick 搜索框与插件之间的输入通道，测完即卸载",
+  "version": "0.0.1",
+  "main": "index.html",
+  "pluginType": "ui",
+  "features": [
+    {
+      "code": "probe",
+      "explain": "探测 Rubick 输入通道",
+      "cmds": ["probe", "探测"]
+    }
+  ]
+}
