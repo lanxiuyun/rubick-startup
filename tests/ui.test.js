@@ -80,7 +80,14 @@ class El {
   querySelector() { return null; }
   appendChild(child) { this.children.push(child); return child; }
   insertBefore(child) { this.children.push(child); return child; }
-  remove() {}
+  remove() {
+    // 真实 DOM 里 remove() 会把自己从父节点摘掉
+    if (this._parent && Array.isArray(this._parent.children)) {
+      const at = this._parent.children.indexOf(this);
+      if (at >= 0) this._parent.children.splice(at, 1);
+    }
+    if (typeof this._onRemove === 'function') this._onRemove(this);
+  }
   focus() { this._focused = true; }
   getBoundingClientRect() { return { left: 10, top: 10, width: 160, height: 120 }; }
 }
@@ -98,16 +105,28 @@ function makeHost(opts = {}) {
   };
   for (const id of ['status', 'tags', 'list', 'spacer', 'menu', 'toast']) ensure(id);
 
-  const appended = [];   // 记录被加到 spacer 的行
+  const appended = [];   // 记录被加到 spacer 的行（会随 remove() 摘除，反映真实 DOM）
   const spacer = nodes.get('spacer');
   const realAppend = spacer.appendChild.bind(spacer);
   spacer.appendChild = child => {
     // 真实 DOM 里 appendChild(DocumentFragment) 会展开它的子节点
-    if (child.tagName === 'FRAGMENT' && child.children.length) appended.push(...child.children);
-    else appended.push(child);
+    const items = (child.tagName === 'FRAGMENT' && child.children.length) ? child.children : [child];
+    for (const item of items) {
+      item._parent = spacer;
+      item._onRemove = el => {
+        const at = appended.indexOf(el);
+        if (at >= 0) appended.splice(at, 1);
+      };
+      appended.push(item);
+    }
     return realAppend(child);
   };
-  spacer.querySelectorAll = () => [];
+  // 支持 ".row,.empty" 这种多选择器，并且真的按 class 过滤 ——
+  // 否则 renderRows 开头"清掉旧行"那步形同虚设，行会累积、陈旧节点被误当成当前状态
+  spacer.querySelectorAll = sel => {
+    const wanted = String(sel).split(',').map(x => x.trim().replace(/^\./, ''));
+    return appended.filter(el => wanted.some(c => (el.className || '').split(/\s+/).includes(c)));
+  };
 
   const documentStub = {
     // 只返回"真实存在"的元素：innerHTML 里插入的 id 由 El 的 setter 注册进来，
@@ -250,7 +269,8 @@ function makeHost(opts = {}) {
     seed(list) {
       store.set('rubick-startup/history-v2', { _id: 'rubick-startup/history-v2', records: list });
     },
-    rows: () => appended.filter(x => x.className === 'row'),
+    // 行可能带额外 class（例如选中态 "row sel"），所以按词匹配
+    rows: () => appended.filter(x => (x.className || '').split(/\s+/).includes('row')),
     runScript() {
       const context = vm.createContext(sandbox);
       vm.runInContext(SCRIPT, context, { filename: 'public/index.html#inline' });
@@ -303,7 +323,7 @@ async function main() {
   ok('Logo/标题/副标题已移除，页面只剩 顶栏一行 + 列表');
 
   console.log('== 3. 空列表显示引导文案 ==');
-  const emptyRow = host.appended.find(x => x.className === 'empty');
+  const emptyRow = host.appended.find(x => (x.className || '') === 'empty');
   assert(emptyRow, '空列表没有渲染 empty 提示');
   assert(/还没有记录/.test(emptyRow.textContent), `文案不对：${emptyRow.textContent}`);
   assert.strictEqual(host.el('spacer').style.height, 'auto', '空列表时 spacer 高度应为 auto');
@@ -548,6 +568,92 @@ async function main() {
   const renamed = host.store.get('rubick-startup/history-v2').records[0];
   assert.deepStrictEqual(renamed.groups, ['新名'], `重命名没落到记录上：${JSON.stringify(renamed.groups)}`);
   ok('重命名标签会同步改所有记录上的引用');
+
+  console.log('== 20. ↑↓ 在列表里选，回车跑选中的 ==');
+  host = makeHost();
+  host.seed([
+    { id: 's1', command: 'first-cmd', time: 3000, kind: 'command', groups: [] },
+    { id: 's2', command: 'second-cmd', time: 2000, kind: 'command', groups: [] },
+    { id: 's3', command: 'third-cmd', time: 1000, kind: 'command', groups: [] }
+  ]);
+  host.runScript();
+  await settle();
+  const selId = () => {
+    const row = host.rows().find(r => /(^|\s)sel(\s|$)/.test(r.className));
+    return row ? row.dataset.id : null;
+  };
+  assert.strictEqual(selId(), null, '一开始不该有选中项');
+
+  host.window.fireKey(undefined, { keyCode: 40 });   // ↓（合成事件只有 keyCode）
+  await settle();
+  assert.strictEqual(selId(), 's1', `第一次 ↓ 应选中第一条，实际 ${selId()}`);
+  assert(/▶ /.test(host.el('status').textContent), `状态位应显示选中项：${host.el('status').textContent}`);
+
+  host.window.fireKey(undefined, { keyCode: 40 });
+  await settle();
+  assert.strictEqual(selId(), 's2', `第二次 ↓ 应选中第二条，实际 ${selId()}`);
+
+  host.window.fireKey(undefined, { keyCode: 38 });   // ↑
+  await settle();
+  assert.strictEqual(selId(), 's1', `↑ 应回到第一条，实际 ${selId()}`);
+
+  host.spawned.length = 0;
+  host.advance(500);
+  host.window.fireKey(undefined, { keyCode: 13 });   // 回车跑选中的
+  await settle();
+  assert.strictEqual(host.spawned.length, 1, '回车没有执行');
+  assert.strictEqual(
+    JSON.stringify(host.spawned[0].args),
+    JSON.stringify(['/d', '/s', '/c', 'first-cmd']),
+    `应执行选中项 first-cmd，实际 ${JSON.stringify(host.spawned[0].args)}`
+  );
+  ok('↑↓ 选择、回车执行选中项（合成事件只有 keyCode 也能选）');
+
+  console.log('== 21. 输入变化后选中作废，回车回到跑原文 ==');
+  host.searchBox('third');
+  await settle();
+  assert.strictEqual(selId(), null, '输入变化后应清掉选中');
+  host.spawned.length = 0;
+  host.advance(500);
+  host.window.fireKey(undefined, { keyCode: 13 });
+  await settle();
+  assert.strictEqual(
+    JSON.stringify(host.spawned[0].args),
+    JSON.stringify(['/d', '/s', '/c', 'third']),
+    `没有选中时应跑输入的原文，实际 ${JSON.stringify(host.spawned[0].args)}`
+  );
+  ok('改了输入就清掉选中，回车回到执行原文');
+
+  console.log('== 22. 选中不会越界 ==');
+  host = makeHost();
+  host.seed([
+    { id: 'a', command: 'aa', time: 2000, kind: 'command', groups: [] },
+    { id: 'b', command: 'bb', time: 1000, kind: 'command', groups: [] }
+  ]);
+  host.runScript();
+  await settle();
+  for (let i = 0; i < 6; i++) host.window.fireKey(undefined, { keyCode: 40 });
+  await settle();
+  let selRow = host.rows().find(r => /(^|\s)sel(\s|$)/.test(r.className));
+  assert.strictEqual(selRow.dataset.id, 'b', `↓ 到底应停在最后一条，实际 ${selRow.dataset.id}`);
+  for (let i = 0; i < 6; i++) host.window.fireKey(undefined, { keyCode: 38 });
+  await settle();
+  selRow = host.rows().find(r => /(^|\s)sel(\s|$)/.test(r.className));
+  assert.strictEqual(selRow.dataset.id, 'a', `↑ 到顶应停在第一条，实际 ${selRow.dataset.id}`);
+  ok('↑↓ 不会越界');
+
+  console.log('== 23. 选中项会被滚动进视野 ==');
+  host = makeHost();
+  host.seed(seedRecords(60));
+  host.runScript();
+  await settle();
+  host.el('list').clientHeight = 100;      // 视口只放得下 2 行
+  for (let i = 0; i < 12; i++) host.window.fireKey(undefined, { keyCode: 40 });
+  await settle();
+  assert(host.el('list').scrollTop > 0, `选到第 12 条时应把列表滚下去，实际 scrollTop=${host.el('list').scrollTop}`);
+  const visibleRow = host.rows().find(r => /(^|\s)sel(\s|$)/.test(r.className));
+  assert(visibleRow, '滚动后选中的那一行必须仍在渲染窗口里（否则看不到高亮）');
+  ok('↑↓ 选到视野外时自动滚动，且高亮行始终在渲染窗口内');
 
   console.log('\n全部通过：' + pass + ' 项');
 }
