@@ -1,0 +1,56 @@
+# 启动收藏 · 知识索引
+#
+# 这里只放索引。具体知识在各目录的 README.md / 描述性命名的文档里。
+# 命名规则：除 README.md 外，文件名必须是能一眼看懂内容的长名字。
+# 交叉引用用 [[name]] 指向本文件里的条目名。
+
+features:
+  input-layer:
+    docs:
+      - .agent/features/input-layer/README.md
+    related:
+      - rubick-plugin-loading
+      - electron-sendinputevent-keyboard-events-are-synthetic
+  records-and-tags:
+    docs:
+      - .agent/features/records-and-tags/README.md
+    related:
+      - rubick-plugin-loading
+      - input-layer
+
+architecture:
+  rubick-plugin-loading:
+    docs:
+      - .agent/architecture/rubick-plugin-loading/README.md
+    related:
+      - input-layer
+      - records-and-tags
+
+skills:
+  electron-sendinputevent-keyboard-events-are-synthetic:
+    docs:
+      - .agent/skills/electron-sendinputevent-keyboard-events-are-synthetic/README.md
+    related:
+      - input-layer
+  fake-dom-harness-must-dispatch-events-to-the-focused-element:
+    docs:
+      - .agent/skills/fake-dom-harness-must-dispatch-events-to-the-focused-element/README.md
+    related:
+      - electron-sendinputevent-keyboard-events-are-synthetic
+
+decisions:
+  - .agent/decisions/2026-10-11-install-plugin-via-script-instead-of-rubick-dev-menu.md
+
+bugs:
+  - .agent/bugs/2026-10-11-enter-key-in-rubick-search-box-does-nothing.md
+  - .agent/bugs/2026-10-11-bridge-installed-but-reported-as-missing.md
+  - .agent/bugs/2026-10-11-plugin-shows-no-name-description-keywords-or-icon.md
+  - .agent/bugs/2026-10-11-registry-is-read-once-at-startup-so-installing-needs-a-restart.md
+
+devlog:
+  - .agent/devlog/2026-10-11-from-winr-replacement-to-string-manager.md
+
+current:
+  plan: 无正式计划文件；进度看最新 devlog
+  phase: 插件已在真机可用（输入 / 标签 / 虚拟滚动 / ↑↓ 选择都已验证）
+  next: 把 design 仓库里的 UI 方案（右侧控件组、标签计数、时间成列）落进 public/index.html

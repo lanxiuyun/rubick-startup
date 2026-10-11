@@ -4,6 +4,7 @@ const path = require('path');
 
 const SUITES = [
   ['../tools/lint-page.js', '页面静态检查（语法/残留引用/关键元素）'],
+  ['../.agent/validate.js', '知识库索引一致性（.agent/）'],
   ['static.test.js', '清单 / 入口 / 无桥接残留 / 安装链路'],
   ['ui.test.js', '页面端到端链路（最小 DOM + child_process 桩）']
 ];
