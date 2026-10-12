@@ -64,9 +64,10 @@ class El {
   }
   dispatch(type, event = {}) {
     const ev = Object.assign({
-      type, target: this, key: '', preventDefault() {}, stopPropagation() {}
+      type, target: this, key: '', preventDefault() {}, stopPropagation() { this.cancelBubble = true; }
     }, event);
     for (const fn of [...(this._listeners.get(type) || [])]) fn(ev);
+    if (!ev.cancelBubble && this._document) this._document.dispatch(type, ev);
   }
   closest(sel) {
     // 测试里只需要两类选择器：.row / #menu / [data-xxx]
@@ -103,7 +104,7 @@ function makeHost(opts = {}) {
     }
     return nodes.get(id);
   };
-  for (const id of ['status', 'tags', 'list', 'spacer', 'menu', 'toast']) ensure(id);
+  for (const id of ['tags', 'list', 'spacer', 'menu', 'toast']) ensure(id);
 
   const appended = [];   // 记录被加到 spacer 的行（会随 remove() 摘除，反映真实 DOM）
   const spacer = nodes.get('spacer');
@@ -137,8 +138,16 @@ function makeHost(opts = {}) {
     querySelectorAll: () => [],
     createDocumentFragment: () => new El('fragment'),
     createElement: tag => new El(tag),
-    addEventListener: () => {}
+    _listeners: new Map(),
+    addEventListener(type, fn) {
+      if (!this._listeners.has(type)) this._listeners.set(type, []);
+      this._listeners.get(type).push(fn);
+    },
+    dispatch(type, event) {
+      for (const fn of [...(this._listeners.get(type) || [])]) fn(event);
+    }
   };
+  for (const el of nodes.values()) el._document = documentStub;
 
   const windowListeners = new Map();
   const windowStub = {
@@ -305,17 +314,18 @@ async function main() {
   assert(host.rubickCalls.setSubInput[0].placeholder, '没有给占位提示');
   ok('调用 rubick.setSubInput(onChange, 占位提示)');
 
-  console.log('== 2. 顶栏单行：标签 + ＋ + 状态 ==');
+  console.log('== 2. 顶栏单行：标签 + ＋ ==');
   for (const dead of ['echo', 'keyhint', 'count', 'sectionTitle', 'results', 'diag', 'brandLogo']) {
     assert(!host.nodes.has(dead), `已砍掉的元素 #${dead} 还在`);
   }
-  for (const alive of ['status', 'tags', 'list', 'spacer', 'menu', 'toast']) {
+  for (const alive of ['tags', 'list', 'spacer', 'menu', 'toast']) {
     assert(host.nodes.has(alive), `关键元素 #${alive} 缺失`);
   }
   const tagsHtml = host.el('tags').innerHTML;
   assert(/data-group="">全部/.test(tagsHtml), `「全部」应是第一个标签：${tagsHtml}`);
   assert(/tagAdd/.test(tagsHtml), '顶栏缺少 ＋ 添加按钮');
-  ok('单行顶栏：全部 → 标签 → ＋ 添加，状态在右');
+  assert(!/id="status"|class="status"/.test(html), '顶栏仍包含运行环境状态位');
+  ok('单行顶栏：全部 → 标签 → ＋ 添加，无环境状态位');
 
   console.log('== 2b. 顶栏里没有头部块 ==');
   assert(!/class="head"/.test(html), '头部块还在（应该只有一行 .bar）');
@@ -394,6 +404,7 @@ async function main() {
   await settle();
   const input = host.nodes.get('newgroup');
   assert(input, '选「新建标签并加入…」没有出现标签输入框');
+  assert(host.el('menu').classList.contains('show'), '点击「新建标签并加入…」后菜单被 document 点击监听立即关闭');
   input.value = '项目文件夹';
   host.window.fireKey(undefined, { keyCode: 13 });   // 菜单输入框里回车
   await settle();
@@ -506,7 +517,7 @@ async function main() {
   host.advance(500);
   host.window.fireKey(undefined, { keyCode: 13 });
   await settle();
-  assert(/启动失败/.test(host.el('status').textContent), `状态应显示启动失败：${host.el('status').textContent}`);
+  assert(/启动失败/.test(host.el('toast').textContent), `toast 应显示启动失败：${host.el('toast').textContent}`);
   assert(/失败/.test(host.logWrites.map(w => w.data).join('')), '日志没记录失败');
   ok('子进程报错时状态显示启动失败并写日志');
 
@@ -514,12 +525,12 @@ async function main() {
   host = makeHost({ skipChildProcess: true });
   host.runScript();
   await settle();
-  assert(/无法执行/.test(host.el('status').textContent), `状态：${host.el('status').textContent}`);
   host.searchBox('notepad');
   host.advance(500);
   host.window.fireKey(undefined, { keyCode: 13 });
   await settle();
   assert.strictEqual(host.spawned.length, 0, '不可用时竟然执行了');
+  assert(/启动失败/.test(host.el('toast').textContent), `toast 应提示执行失败：${host.el('toast').textContent}`);
   ok('不可用时拦住执行，状态如实说明原因');
 
   console.log('== 17. 顶栏新建标签（空标签也要留住）==');
@@ -538,7 +549,15 @@ async function main() {
   host.el('tags').dispatch('click', { target: { closest: sel => (sel === '#tagAdd' ? {} : null) } });
   const tinput = host.nodes.get('tagInput');
   assert(tinput, '点 ＋ 标签 没有出现输入框');
-  tinput.value = '项目文件夹';
+  assert(host.nodes.has('tagCancel'), '新建标签时没有显示取消按钮');
+  host.nodes.get('tagCancel').dispatch('click');
+  await settle();
+  assert(!host.el('tags').innerHTML.includes('tagInput'), '点击取消后输入框仍然存在');
+  assert.strictEqual(groupNames().length, 0, '取消新建后不应产生标签');
+  host.el('tags').dispatch('click', { target: { closest: sel => (sel === '#tagAdd' ? {} : null) } });
+  const retryInput = host.nodes.get('tagInput');
+  assert(retryInput, '取消后再次点击 ＋ 标签 没有显示输入框');
+  retryInput.value = '项目文件夹';
   host.window.fireKey(undefined, { keyCode: 13 });
   await settle();
   assert(/项目文件夹/.test(host.el('tags').innerHTML), `新建的标签没出现在顶栏：${host.el('tags').innerHTML}`);
@@ -609,7 +628,7 @@ async function main() {
   host.window.fireKey(undefined, { keyCode: 40 });   // ↓（合成事件只有 keyCode）
   await settle();
   assert.strictEqual(selId(), 's1', `第一次 ↓ 应选中第一条，实际 ${selId()}`);
-  assert(/▶ /.test(host.el('status').textContent), `状态位应显示选中项：${host.el('status').textContent}`);
+  assert(!host.nodes.has('status'), '选择列表项时不应创建状态位');
 
   host.window.fireKey(undefined, { keyCode: 40 });
   await settle();

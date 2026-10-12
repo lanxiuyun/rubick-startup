@@ -54,7 +54,7 @@ assert(html.includes('appendFileSync'), '页面应把运行日志写到文件，
 assert(html.includes('cmd.exe'), '执行必须显式走 cmd.exe');
 assert(html.includes('detached'), 'spawn 应 detached，避免被父进程牵连');
 assert(html.includes('unref'), 'spawn 后应 unref，否则 Rubick 退出会被子进程拖住');
-assert(html.includes('可以运行') && html.includes('无法执行'), '页面缺少运行环境状态文案');
+assert(!html.includes('可以运行') && !html.includes('点击查看运行环境'), '页面仍包含运行环境状态 UI');
 // 输入层：真机实证过的三条通道，任何一条被删掉都应该让测试失败
 assert(/setSubInput\s*\(/.test(html), '页面没有用 rubick.setSubInput 接管搜索框（输入层主干）');
 assert(html.includes("addEventListener('keydown'"), '页面没有监听按键（搜索框转发的回车靠它）');

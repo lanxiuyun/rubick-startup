@@ -3,50 +3,53 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>启动收藏</title>
 <style>
-:root{color-scheme:light;--bg:#fafbfc;--paper:#fff;--line:#eceef2;--text:#39404d;--muted:#8b93a1;--faint:#9aa1ad;--chip:#f1f2f4;--chip-text:#5b6472;--ink:#2b2d31;--sel:#eef2fd;--red:#c0524b;--amber:#d09344;--green:#4a9d5f}
+:root{color-scheme:light;--bg:#fff;--paper:#fff;--line:#e4ebf5;--text:#243248;--muted:#63758c;--faint:#83909d;--chip:#f0f4fa;--chip-text:#536a86;--ink:#2864ed;--sel:#f0f5ff;--red:#c34d4d;--amber:#c27a24;--green:#278455}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","Microsoft YaHei",sans-serif;overflow:hidden}
-.app{display:flex;flex-direction:column;height:100vh;padding:8px 10px 6px}
-/* 唯一的顶栏：筛选标签在左、＋ 新建标签、状态最右 —— 全在同一行 */
-.bar{display:flex;align-items:center;gap:8px;flex:none;height:28px;margin-bottom:6px}
-.tags{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;height:28px}
+.app{display:flex;flex-direction:column;height:100vh;padding:0 16px 12px}
+/* 唯一的顶栏：筛选标签在左、＋ 新建标签 */
+.bar{display:flex;align-items:center;gap:10px;flex:none;height:52px;margin-bottom:0;border-bottom:1px solid var(--line);background:var(--paper)}
+.tags{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;height:32px}
 .tags::-webkit-scrollbar{display:none}
-.status{font:10px/1 ui-monospace,Consolas,monospace;color:var(--faint);cursor:pointer;flex:none;max-width:38%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.status::before{content:"●";margin-right:5px;font-size:8px;vertical-align:1px;color:var(--green)}
-.status.bad::before{color:var(--red)}
-.status.busy::before{color:var(--amber)}
-.tag{display:inline-flex;align-items:center;gap:4px;border:0;background:var(--chip);border-radius:999px;padding:3px 10px;color:var(--chip-text);font-size:11.5px;line-height:16px;white-space:nowrap;cursor:pointer;flex:none}
-.tag:hover{background:#e9ebef}
-.tag .n{font:10px ui-monospace,Consolas,monospace;color:var(--faint)}
+.tag{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;background:var(--chip);border-radius:6px;padding:5px 10px;color:var(--chip-text);font-size:12px;line-height:16px;white-space:nowrap;cursor:pointer;flex:none;transition:background .16s,color .16s,border-color .16s}
+.tag:hover{background:#e6edf9;color:#2c4d7b}
+.tag .n{min-width:16px;color:#70839e;text-align:center;font:10px/14px ui-monospace,Consolas,monospace}
 .tag.on{background:var(--ink);color:#fff}
-.tag.on:hover{background:#3a3d42}
-.tag.on .n{color:#a9aeb8}
-.tag.add{background:transparent;border:1px dashed #d7dae0;color:#9aa1ad}
-.tag.add:hover{border-color:#b9c0cb;color:#5b6472;background:transparent}
-.tag input{border:0;outline:none;background:transparent;font:11.5px inherit;width:74px;padding:0;color:var(--text)}
+.tag.on:hover{background:#2157d2}
+.tag.on .n{color:#dce8ff}
+.tag.add{background:#fff;border:1px solid #d9e0e5;color:#526170}
+.tag.add:hover{border-color:#adc7ff;color:var(--ink);background:var(--sel)}
+.tag input,.tag-editor input{border:0;outline:none;background:transparent;font:12px "Segoe UI","Microsoft YaHei",sans-serif;width:84px;padding:0;color:var(--text)}
+.tag-editor{display:inline-flex;align-items:center;gap:3px;padding:2px 4px 2px 9px;border:1px solid #adc7ff;border-radius:6px;background:var(--sel)}
+.tag-editor input{width:100px}
+.tag-editor button{width:22px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:#526170;font:16px/1 "Segoe UI",sans-serif;cursor:pointer}
+.tag-editor button:hover{background:#e0eaff;color:var(--ink)}
+.tag-editor button.confirm{color:var(--ink);font-size:14px}
+.tag-editor button.cancel:hover{background:#f8eaea;color:var(--red)}
 /* 列表 */
-.list{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;padding:2px 4px;background:var(--paper);border-top:1px solid var(--line)}
+.list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;position:relative;padding:8px 0;background:var(--paper)}
 .spacer{position:relative;width:100%}
 /* 行高不写在这里：由脚本常量 ROW_H 内联设置，避免两处漂移 */
-.row{position:absolute;left:0;right:0;display:flex;align-items:center;gap:8px;padding:0 8px;border-radius:8px;cursor:pointer}
-.row:hover{background:#f6f8fd}
-.row.sel{background:var(--sel)}
-.ico{width:22px;height:22px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center}
-.ico svg{width:13px;height:13px}
-.ico.term{background:#eaf1fe;color:#2f6bd8}
-.ico.path{background:#fdf0e3;color:#d9822b}
-.ico.url{background:#e6f6fb;color:#1288ac}
-.ico.calc,.ico.pad{background:#e8f6ec;color:#2f9e5f}
-.cmd{flex:1;min-width:0;font:12px/1.2 ui-monospace,Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.chips{display:flex;align-items:center;gap:4px;flex:none;max-width:54%;overflow:hidden}
-.chip{display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #e4e6ea;border-radius:6px;padding:0 7px;height:18px;color:var(--chip-text);font-size:11px;white-space:nowrap;max-width:110px}
+.row{position:absolute;left:0;right:0;display:flex;align-items:center;gap:12px;padding:0 12px;border:1px solid transparent;border-radius:7px;cursor:pointer;transition:background .14s,border-color .14s}
+.row:hover{background:#f7f9fd}
+.row.sel{background:var(--sel);border-color:#cbdcff}
+.ico{width:30px;height:30px;border:1px solid currentColor;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center}
+.ico svg{width:16px;height:16px}
+.ico.term{background:#f1f6ff;color:#2f6bd8;border-color:#d8e5ff}
+.ico.path{background:#fff8ed;color:#d9822b;border-color:#ffe4bd}
+.ico.url{background:#effbff;color:#1288ac;border-color:#cbecf7}
+.ico.calc,.ico.pad{background:#effbf5;color:#2f9e5f;border-color:#d0efde}
+.cmd{flex:1;min-width:0;font:14px/1.4 Consolas,"Microsoft YaHei",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#263543}
+.chips{display:flex;align-items:center;gap:5px;flex:none;max-width:45%;overflow:hidden}
+.chip{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:0;background:#edf2f9;border:1px solid #e1e8f2;border-radius:5px;padding:0 9px;height:22px;color:#435b7a;font-size:12px;font-weight:500;white-space:nowrap;max-width:110px}
 .chip span{overflow:hidden;text-overflow:ellipsis}
 /* × 平时不显形（跟设计图一致），鼠标停在 chip 上才出现；DOM 里始终在，键盘/测试都还能点到 */
-.chip .x{color:#aab1bd;cursor:pointer;font-size:11px;line-height:1;opacity:0;transition:opacity .12s}
-.chip:hover .x{opacity:1}
+.chip .x{position:absolute;right:1px;top:1px;display:flex;align-items:center;justify-content:center;width:16px;height:18px;background:#edf2f9;border-radius:3px;color:#70839e;cursor:pointer;font-style:normal;font-size:13px;line-height:1;opacity:0;pointer-events:none;transition:opacity .12s}
+.chip:hover .x{opacity:1;pointer-events:auto}
 .chip .x:hover{color:var(--red)}
-.chip.more{background:transparent;border-color:transparent;color:var(--faint);padding:0 2px}
-.time{flex:none;font:10px/1 ui-monospace,Consolas,monospace;color:var(--faint)}
+.chip.more{background:transparent;border-color:transparent;color:var(--muted);padding:0 2px}
+.time{flex:none;width:38px;margin-left:6px;text-align:right;font:11px/1 Consolas,monospace;color:#63758c}
+.tag:focus-visible,.row:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 .empty{padding:22px 4px;text-align:center;color:var(--muted);font-size:12px}
 /* 右键/加标签菜单 */
 .menu{position:fixed;z-index:50;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #1f24301f;padding:4px;min-width:150px;max-height:240px;overflow:auto;display:none}
@@ -58,9 +61,17 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
 .menu input{width:100%;border:1px solid var(--line);border-radius:5px;padding:3px 6px;font:12px inherit;outline:none}
 .toast{position:fixed;left:50%;bottom:12px;transform:translateX(-50%) translateY(14px);background:var(--ink);color:#f5f6f8;font-size:11px;padding:6px 13px;border-radius:7px;opacity:0;pointer-events:none;transition:.18s}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:480px){
+ .app{padding:0 10px 10px}
+ .row{gap:8px;padding:0 8px}
+ .chips{max-width:30%;gap:3px}
+ .chip{padding:0 5px}
+ .time{margin-left:0}
+}
+@media(prefers-reduced-motion:reduce){.tag,.row,.toast,.chip .x{transition:none}}
 </style></head>
 <body><div class="app">
-  <div class="bar"><div class="tags" id="tags"></div><span id="status" class="status" title="点击查看运行环境"></span></div>
+  <div class="bar"><div class="tags" id="tags"></div></div>
   <div class="list" id="list"><div class="spacer" id="spacer"></div></div>
 </div>
 <div class="menu" id="menu"></div>
@@ -80,7 +91,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
  //   - @electron/remote 不可用；插件页 nodeIntegration:true 可直接 require
  const KEY='rubick-startup/history-v2';
  const LIMIT=500;        // 只约束【没有标签】的临时记录；打过标签的永久保留
- const ROW_H=44;         // 固定行高：单行 44（22 图标 + 上下留白），虚拟滚动硬约束，改它必须同步布局
+ const ROW_H=56;         // 固定行高：30px 图标 + 上下留白，虚拟滚动硬约束，改它必须同步布局
  let records=[], activeGroup='', currentCommand='', subInputReady=false, rowsDirty=true;
  let selIndex=-1, selId=null;   // 上下键选中的那条（-1 = 没选，回车跑输入的原文）
  let scrollTop=0, renderFrom=0, renderTo=0, menuTarget=null;
@@ -213,10 +224,8 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   if(subInputReady&&rubick&&typeof rubick.setSubInputValue==='function'){
    try{rubick.setSubInputValue('')}catch(e){}
   }
-  setStatus('正在运行…','busy');
   spawnCommand(command,result=>{
    logLine('run-result',result.ok?'ok':'fail');
-   setStatus(result.ok?'已运行：'+command.slice(0,40):'启动失败：'+((result.error||'').slice(0,50)),'bad');
    toast(result.ok?'已提交给 Windows':'启动失败：'+(result.error||'未知错误'));
   });
  }
@@ -342,26 +351,11 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   rowsDirty=true;renderRows();
   ensureSelectionVisible();
   rowsDirty=true;renderRows();   // 滚动后可见窗口变了，再画一次保证高亮行在窗口里
-  showSelectionHint();
   return true;
  }
  function clearSelection(){selIndex=-1;selId=null}
- // 状态位平时显示"你正在输入什么"（回车能跑的那个）—— 这是插件里唯一的输入回显
- function showSelectionHint(){
-  const rec=selectedRecord();
-  if(rec)setStatus('▶ '+rec.command.slice(0,60),'busy');
-  else setStatus(currentCommand?currentCommand.slice(0,60):'','');
- }
  // ── 数据或过滤条件变了就标记重绘：比"比较窗口范围"可靠，空列表也能正确渲染
  function renderAll(){rowsDirty=true;renderTags();renderRows()}
- function setStatus(text,cls){
-  const el=$('status');
-  el.textContent=text||(canRun?(subInputReady?'可以运行':'输入层未接上'):('无法执行：'+env.reason));
-  const state=cls||(canRun?'ok':'bad');
-  el.classList.toggle('ok',state==='ok');
-  el.classList.toggle('bad',state==='bad');
-  el.classList.toggle('busy',state==='busy');
- }
  // ── 标签本身的增删改 ──────────────────────────────────────────
  // 标签是从记录里长出来的，所以"建/删/改名"都要落到记录上
  function renameGroup(oldName,newName){
@@ -399,21 +393,26 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
  // 顶栏里的内联输入：新建标签 / 重命名
  function inlineTagInput(mode,oldName){
   const box=$('tags');
-  box.innerHTML='<span class="tag add"><input id="tagInput" placeholder="'+(mode==='rename'?'新名字·回车':'标签名·回车')+'"></span>';
+  box.innerHTML='<span class="tag-editor"><input id="tagInput" placeholder="'+(mode==='rename'?'新名字':'标签名')+'，回车确认"><button class="confirm" id="tagConfirm" type="button" title="确认" aria-label="确认">✓</button><button class="cancel" id="tagCancel" type="button" title="取消" aria-label="取消">×</button></span>';
   const input=$('tagInput');
+  const submit=()=>{
+   const value=input.value;
+   if(mode==='create')createGroup(value);
+   else renameGroup(oldName,value);
+  };
   try{input.focus()}catch(e){}
   input.addEventListener('keydown',ev=>{
    if(isEnterKey(ev)){
     ev.preventDefault();
-    const value=input.value;
-    if(mode==='create')createGroup(value);
-    else renameGroup(oldName,value);
+    submit();
    }else if(ev.key==='Escape'||ev.keyCode===27){
     renderTags();
    }
    ev.stopPropagation();
   });
   input.addEventListener('click',ev=>ev.stopPropagation());
+  $('tagConfirm').addEventListener('click',ev=>{ev.stopPropagation();submit()});
+  $('tagCancel').addEventListener('click',ev=>{ev.stopPropagation();renderTags()});
  }
  // 新建一个空标签：没有记录引用它，所以用 pinnedGroups 记住，避免它"消失"
  function createGroup(rawName){
@@ -476,6 +475,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   input.addEventListener('click',ev=>ev.stopPropagation());
  }
  $('menu').addEventListener('click',e=>{
+  e.stopPropagation();
   const item=e.target.closest('.mi');
   if(!item||!menuTarget)return;
   // 标签菜单（右键顶部标签）
@@ -531,7 +531,6 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   currentCommand=String(text??'');
   clearSelection();
   renderAll();
-  showSelectionHint();
  }
  if(rubick&&typeof rubick.setSubInput==='function'){
   try{
@@ -588,7 +587,6 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   activeGroup=t.dataset.group||'';
   clearSelection();                 // 换标签后过滤结果变了，选中下标作废
   renderAll();
-  showSelectionHint();
   $('list').scrollTop=0;scrollTop=0;
  });
  // 右键顶部标签：重命名 / 删除
@@ -598,11 +596,10 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.35 "Segoe UI","
   e.preventDefault();
   tagMenu(t.dataset.group,e.clientX,e.clientY);
  });
- $('status').addEventListener('click',()=>{showSelectionHint();toast(canRun?(subInputReady?'可以运行：在 Rubick 搜索框输入后回车；↑↓ 选择列表里的记录':'输入层未接上'):('无法执行：'+env.reason))});
  records=load();
  if(rubick&&typeof rubick.onPluginReady==='function'){
-  rubick.onPluginReady(()=>{records=load();renderAll();showSelectionHint();try{rubick.setExpendHeight(570)}catch(e){}});
+  rubick.onPluginReady(()=>{records=load();renderAll();try{rubick.setExpendHeight(570)}catch(e){}});
  }
- renderAll();showSelectionHint();
+ renderAll();
 })();
 </script></body></html>

@@ -56,19 +56,20 @@ for (const [label, re] of [['records 状态', /let records=/g], ['subInputReady'
 
 // 5. 关键元素在 DOM 里必须各出现一次
 const missing = [];
-for (const id of ['status', 'tags', 'list', 'spacer', 'menu', 'toast']) {
+for (const id of ['tags', 'list', 'spacer', 'menu', 'toast']) {
   const n = html.split(`id="${id}"`).length - 1;
   if (n !== 1) missing.push(`${id}×${n}`);
 }
-if (!missing.length) pass('关键元素齐全（status/tags/list/spacer/menu/toast）');
+if (!missing.length) pass('关键元素齐全（tags/list/spacer/menu/toast）');
 else fail(`元素 id 数量异常：${missing.join(', ')}`);
 
-// 5a. 顶栏必须只有一行：标签 + ＋ 添加 + 状态 全在同一行
+// 5a. 顶栏必须只有一行：标签 + ＋ 添加
 if (!/<div class="bar">/.test(html)) fail('缺少单行顶栏 .bar');
 if (/class="head"/.test(html)) fail('头部块又回来了（应该只有一个 .bar）');
 if (!/id="tagAdd"|＋ 标签/.test(html) && !/tagAdd/.test(html)) fail('.bar 里缺少「＋ 标签」添加按钮');
 if (!/\.bar\{[^}]*display:flex/.test(html)) fail('.bar 不是 flex 单行布局');
-pass('顶栏单行：标签在左 / ＋ 添加 / 状态最右');
+if (html.includes('id="status"') || code.includes("$('status')")) fail('已移除的环境状态 UI 仍有引用');
+else pass('顶栏单行：标签在左 / ＋ 添加，无环境状态 UI');
 
 // 5b. 已砍掉的 UI 不该复活
 for (const dead of ['id="echo"', 'id="keyhint"', 'id="count"', 'id="sectionTitle"', 'data-star', 'brandLogo']) {

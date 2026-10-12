@@ -207,7 +207,7 @@ function install() {
 
   console.log('\n安装完成。下一步：');
   console.log('  1. 关掉插件再重新打开（页面文件是每次打开重新读的；改了页面不用重启 Rubick）。');
-  console.log('  2. 搜索 fav 或 运行 打开「启动收藏」，右下角应显示「可以运行」。');
+  console.log('  2. 搜索 fav 或 运行 打开「启动收藏」，输入命令后按回车运行。');
   console.log('  3. 输入 notepad 回车试运行。');
   console.log('  4. 排查日志（页面自己写的）：%TEMP%\\rubick-startup.log');
 }
