@@ -379,23 +379,45 @@ async function main() {
   const recs = () => host.store.get('rubick-startup/history-v2').records;
   const target = recs()[0];
   const groupsBefore = target.groups.length;
-  // 模拟点记录下方的 ＋：closest 应先命中内层 [data-addgroup]，再命中 .row
-  host.el('list').dispatch('click', {
-    target: {
-      closest: sel => (sel === '[data-addgroup]' ? {}
-        : sel === '.row' ? { dataset: { id: target.id } } : null)
-    },
-    clientX: 20, clientY: 20, stopPropagation() {}
+  // 行内的 ＋ 已按设计砍掉（列表行只有 命令 + 标签 + 时间）：
+  // 给记录加标签改走右键菜单 → 「新建标签并加入…」
+  host.el('list').dispatch('contextmenu', {
+    target: { closest: sel => (sel === '.row' ? { dataset: { id: target.id } } : null) },
+    clientX: 20, clientY: 20, preventDefault() {}
   });
+  await settle();
+  assert(/data-act="newgroup"/.test(host.el('menu').innerHTML), '右键菜单里没有「新建标签并加入…」');
+  host.el('menu').dispatch('click', {
+    target: { closest: () => ({ dataset: { act: 'newgroup' } }) },
+    currentTarget: host.el('menu')
+  });
+  await settle();
   const input = host.nodes.get('newgroup');
-  assert(input, '点 ＋ 没有出现标签输入框');
+  assert(input, '选「新建标签并加入…」没有出现标签输入框');
   input.value = '项目文件夹';
   host.window.fireKey(undefined, { keyCode: 13 });   // 菜单输入框里回车
   await settle();
   const tagged = recs().find(r => r.id === target.id);
   assert(tagged.groups.includes('项目文件夹'), `标签没有加上：${JSON.stringify(tagged.groups)}`);
   assert.strictEqual(tagged.groups.length, groupsBefore + 1, '标签数应 +1');
-  ok('点 ＋ → 输入名字 → 回车，标签写入记录');
+  ok('右键行 → 新建标签 → 输入名字 → 回车，标签写入记录');
+
+  console.log('== 8b. 右键菜单：复制命令（桩里没有剪贴板，必须走兜底且不崩）==');
+  host.el('list').dispatch('contextmenu', {
+    target: { closest: sel => (sel === '.row' ? { dataset: { id: target.id } } : null) },
+    clientX: 20, clientY: 20, preventDefault() {}
+  });
+  await settle();
+  assert(/data-act="copy"/.test(host.el('menu').innerHTML), '右键菜单里没有「复制命令」');
+  host.el('menu').dispatch('click', {
+    target: { closest: () => ({ dataset: { act: 'copy' } }) },
+    currentTarget: host.el('menu')
+  });
+  await settle();
+  // 桩里 require('electron') 会抛错、document.body 不存在 —— 只能落到"复制失败"，但不该抛出来
+  assert(/已复制命令|复制失败/.test(host.el('toast').textContent), `复制没有给出结果：${host.el('toast').textContent}`);
+  assert(!host.el('menu').classList.contains('show'), '点完菜单项菜单应关掉');
+  ok('右键「复制命令」有兜底、不抛错，菜单正常关闭');
 
   console.log('== 9. 筛选行渲染标签，点标签筛选 ==');
   assert(/全部/.test(host.el('tags').innerHTML), '筛选行没有「全部」');
