@@ -1,0 +1,36 @@
+:root{color-scheme:light;background:#fff;color:#242a2e;font-family:"Segoe UI","Microsoft YaHei",sans-serif}
+*{box-sizing:border-box;letter-spacing:0}
+body{margin:0;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh;padding:0 12px 12px;background:#fff}
+.bar{display:flex;align-items:center;height:53px;flex:none;padding:0 8px;border-bottom:1px solid #e7eaec}
+.tags{display:flex;align-items:center;gap:6px;min-width:0;width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:3px 0}
+.tags::-webkit-scrollbar{display:none}
+.filter-slot{display:inline-flex;flex:none}
+.tag.ant-tag{display:inline-flex;align-items:center;gap:8px;margin:0;padding:3px 9px;height:28px;background:#fff;color:#68747d;border-color:#e1e6e4;white-space:nowrap;cursor:pointer;flex:none;font-weight:400;font-size:12px}
+.tag.ant-tag:hover{background:#f6f8f8}
+.tag.ant-tag.on{background:#eef7f4;border-color:#d7eae3;color:#237f70}
+.tag .ant-badge-count{position:static;transform:none;box-shadow:none;background:#f0f3f2;color:#68747d;height:16px;min-width:18px;line-height:16px;font-size:10px;font-variant-numeric:tabular-nums;border-radius:3px}
+.tag.on .ant-badge-count{background:#dceee7;color:#237f70}
+#tagAdd{flex:none;width:28px;height:28px;color:#727b82}
+.tag-editor{width:230px;flex:none}
+.tag-editor .ant-input{min-width:0}
+.list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;position:relative;padding:8px 0}
+.spacer{position:relative;width:100%}
+.row{position:absolute;left:0;right:0;display:flex;align-items:center;gap:12px;padding:0 12px;border-radius:4px;cursor:pointer}
+.row:hover{background:#f6f8f8}
+.row.sel{background:#eef7f4}
+.ico{width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex:none;font-size:18px;color:#657c90}
+.ico.path{color:#b88b48}.ico.url{color:#538ba2}.ico.pad{color:#4a947c}
+.cmd{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:13px/1.4 Consolas,"Microsoft YaHei",monospace;color:#242a2e}
+.chips{display:flex;align-items:center;gap:5px;flex:none;max-width:45%;overflow:hidden}
+.chip.ant-tag{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:110px;height:22px;margin:0;padding:0 6px;background:#e0ece7;border-color:#b5ccc2;color:#345c4e;border-radius:3px;font-size:11px;white-space:nowrap}
+.chip-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.chip .ant-tag-close-icon{display:flex;align-items:center;justify-content:center;flex:none;width:12px;height:18px;margin:0;color:#678477}
+.chip .ant-tag-close-icon:hover{color:#c34d4d}
+.chip.more{background:transparent;border-color:transparent;color:#727b82;padding:0 2px}
+.time{width:38px;flex:none;margin-left:6px;text-align:right;font:10px/1 Consolas,monospace;color:#727b82;font-variant-numeric:tabular-nums}
+.empty{padding:24px 0}
+.ant-dropdown-menu{max-height:300px;overflow-y:auto}
+.tag:focus-visible{outline:2px solid #237f70;outline-offset:1px}
+@media(max-width:480px){.app{padding:0 10px 10px}.bar{padding:0 4px}.row{gap:8px;padding:0 8px}.chips{max-width:30%;gap:3px}.chip.ant-tag{padding:0 5px}.time{margin-left:0}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important}}

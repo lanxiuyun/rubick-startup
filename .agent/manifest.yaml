@@ -14,6 +14,7 @@ features:
   records-and-tags:
     docs:
       - .agent/features/records-and-tags/README.md
+      - .agent/features/records-and-tags/标签样式与完整-Rubick-窗口截图验收约定.md
     related:
       - rubick-plugin-loading
       - input-layer
@@ -52,5 +53,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 插件已在真机可用（输入 / 标签 / 虚拟滚动 / ↑↓ 选择都已验证）
-  next: 把 design 仓库里的 UI 方案（右侧控件组、标签计数、时间成列）落进 public/index.html
+  phase: 已迁移 React + TypeScript + Ant Design；离线单 HTML 构建与真实浏览器回归
+  next: 重开插件确认 Ant Design 真机效果；用户确认后再提交迁移改动

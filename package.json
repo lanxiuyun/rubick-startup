@@ -15,11 +15,28 @@
   ],
   "private": true,
   "scripts": {
-    "serve": "npx http-server public -p 4173 -c-1",
+    "serve": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "deps": "npm install",
+    "audit": "npm audit",
     "install:rubick": "node tools/install.js",
     "check:rubick": "node tools/install.js --check",
     "uninstall:rubick": "node tools/install.js --uninstall",
-    "test": "node tests/run-all.js",
+    "test": "npm run build && node tests/run-all.js",
     "test:visual": "node tests/visual.e2e.js"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.6.1",
+    "antd": "^5.29.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "playwright": "^1.56.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
   }
 }

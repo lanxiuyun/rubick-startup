@@ -6,7 +6,10 @@
 
 ## 涉及文件
 
-- `public/index.html` — 全部逻辑都在这里：`env` 能力探测、`setSubInput` 注册、`isEnterKey/isUpKey/isDownKey`、`moveSelection`、`launch`
+- `src/StartupApp.tsx` — React 状态、`setSubInput` 注册、默认选择、键盘选择与执行入口
+- `src/runtime.ts` — Rubick 存储、进程执行、剪贴板与日志
+- `src/model.mjs` — `keyName` 同时识别 key / code / keyCode，筛选与选择边界
+- `public/index.html` — `npm run build` 生成的离线入口，不直接手改
 - `tools/probe-plugin/` + `tools/probe-setup.js` — 临时探测插件，Rubick 升级后用来重新问清协议
 
 ## 三条通道（全部真机实证）
@@ -31,6 +34,8 @@
 ```
 
 ## 关键约定
+
+**进入插件默认选中第一条记录。** 页面初始化与 `onPluginReady` 重新加载时，输入为空且存在记录就选中当前列表第一行，直接回车可执行；空列表不选择。第一次按 ↓ 移到第二行。输入变化、标签切换及执行后仍清除选择，输入非空时初始化也不自动选择历史记录，回车继续执行输入原文。
 
 **⚠️ 按键只转发键码，文本不能靠按键重建。** 映射表写死在主进程里，只覆盖功能键与字母数字：
 
@@ -58,10 +63,12 @@ ur = { Backspace, Tab, Enter, Escape, Space, PageUp, PageDown, End, Home,
 
 ## 改这个功能时要动哪里
 
-1. `isEnterKey` / `isUpKey` / `isDownKey` —— 三个特征都要认（见 [[electron-sendinputevent-keyboard-events-are-synthetic]]）
-2. `setSubInput` 的回调里要 `clearSelection()` —— 输入变了过滤结果就变了，旧的选中下标会指向另一条记录
+1. `src/model.mjs` 的 `keyName` —— key / code / keyCode 都要认（见 [[electron-sendinputevent-keyboard-events-are-synthetic]]）
+2. `setSubInput` 的回调里清空 selected，并重置滚动位置；输入变了过滤结果也变了
 3. 执行路径 `launch()` 里顺序不能乱：**先同步取出原文**，再清空搜索框（清空会触发回调覆盖状态）
 4. 用 `tools/probe-setup.js` 复测协议，不要靠猜
+
+React 状态使用同步 ref 镜像，保证 `setSubInputValue('')` 同步回放时不会读取陈旧输入。标签编辑器打开时 window 捕获监听让路给 Ant Design Input；编辑器自己的处理器也调用 `keyName`，支持 Rubick 合成键码。
 
 ## 相关
 

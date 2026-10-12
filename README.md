@@ -15,6 +15,7 @@
 ```powershell
 cd %PROJECT%
 
+npm run deps              # 安装 React / Ant Design / 构建与测试依赖
 npm test                  # 先自检（不需要 Rubick 在跑）
 npm run install:rubick    # 装进 Rubick：建链接 + 写注册表
 ```
@@ -187,7 +188,12 @@ node tools/probe-setup.js uninstall
 ```
 package.json              插件清单（pluginType: ui；Rubick 靠 features[].cmds 建索引）
 public/
-  index.html              全部界面与逻辑：输入层 / 标签 / 虚拟滚动 / 执行，原生 JS 无依赖
+  index.html              npm run build 生成的离线单 HTML，不直接编辑
+src/
+  StartupApp.tsx          React + Ant Design 界面、键盘与虚拟列表
+  runtime.ts              Rubick 存储、执行、剪贴板、日志
+  model.mjs               记录筛选、标签计数、保留和按键规则
+  style.css               单行列表布局与局部主题
 tools/
   install.js              安装 / 卸载 / 体检
   lint-page.js            页面静态检查（语法、残留引用、关键元素、已砍元素复活）
@@ -198,12 +204,15 @@ tools/
 tests/
   run-all.js              npm test（先跑 lint，再跑两个套件）
   static.test.js          清单、无桥接残留、结构关键点、安装器逻辑
-  ui.test.js              最小 DOM + 虚拟时钟：输入层 / 标签 / 虚拟滚动 / 上限 / 排序
+  ui.test.js              记录模型与合成键码规则
+  visual.e2e.js           Playwright：离线构建、完整宿主、交互与响应式截图
 ```
 
 ---
 
 ## 下一步可以做的
+
+开发界面使用 `npm run serve`，修改源文件后运行 `npm run build` 更新 Rubick 入口。构建产物包含所有 React / Ant Design 脚本与样式，无 CDN 依赖。`npm test` 会先构建，再运行全部测试。
 
 1. **标签重命名与删除**：现在只能新建和给记录加/移出；改名会留下孤儿标签。
 2. **执行语义补齐**：`$env:` 这类 PowerShell 写法、URL、文档关联。当前锚点是 `cmd.exe`，要更贴近 Win+R 可以换 `ShellExecuteW`。
