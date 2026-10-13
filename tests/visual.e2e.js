@@ -14,13 +14,19 @@ const records = [
 ].map((record, index) => ({ ...record, time: Date.now() - index * 60000 }));
 
 function adapter(seed) {
-  window.saved = seed;
+  const persisted = sessionStorage.getItem('reload-fixture') ? JSON.parse(sessionStorage.getItem('history-fixture') || 'null') : null;
+  sessionStorage.removeItem('reload-fixture');
+  window.saved = persisted?.records ?? seed;
+  window.savedGroups = persisted?.groups;
   window.launched = [];
   window.copied = [];
   window.clock = Date.now();
   window.__rubickStartupNow = () => window.clock;
   window.rubick = {
-    db: { get: () => ({ _rev: '1-test', records: window.saved }), put: doc => { window.saved = doc.records; window.revision = doc._rev; } },
+    db: { get: () => ({ _rev: '1-test', records: window.saved, groups: window.savedGroups }), put: doc => {
+      window.saved = doc.records; window.savedGroups = doc.groups; window.revision = doc._rev;
+      sessionStorage.setItem('history-fixture', JSON.stringify(doc));
+    } },
     setSubInput: callback => { window.search = callback; },
     setSubInputValue: value => { window.cleared = value; window.search({ text: value }); },
     onPluginReady: callback => { window.ready = callback; }, setExpendHeight: () => {}
@@ -99,23 +105,28 @@ async function main() {
     assert.strictEqual(await page.evaluate(() => window.launched.length), 0, 'Editor Enter must not launch commands');
     await page.locator('#tagInput').press('Enter');
     await page.locator('.tag[data-group="空标签"]').waitFor();
+    assert(await page.evaluate(() => window.savedGroups?.includes('空标签')), 'Empty tags must be persisted');
     await page.locator('.tag[data-group="空标签"]').click({ button: 'right' });
     await menuClick('重命名标签');
     await page.locator('#tagInput').fill('新空标签');
     await page.locator('#tagConfirm').click();
+    assert(await page.evaluate(() => window.savedGroups.includes('新空标签') && !window.savedGroups.includes('空标签')), 'Renaming empty tags must update persisted names');
     await page.locator('.tag[data-group="新空标签"]').click({ button: 'right' });
     await menuClick('删除标签');
     assert.strictEqual(await page.locator('.tag[data-group="新空标签"]').count(), 0);
+    assert(!await page.evaluate(() => window.savedGroups.includes('新空标签')), 'Explicit deletion must remove persisted name');
 
     await page.locator('.tag[data-group=""]').click();
     await page.locator('.row[data-id="a"]').click({ button: 'right' });
-    await menuClick('复制命令');
+    await page.getByRole('button', { name: '复制命令', exact: true }).click();
     assert.strictEqual(await page.evaluate(() => window.copied[0]), 'ipconfig /all');
-    await page.locator('.row[data-id="a"]').click({ button: 'right' });
-    await menuClick('新建标签并加入…');
-    await page.locator('#tagInput').fill('测试标签');
-    await page.locator('#tagInput').press('Enter');
+    await page.getByRole('textbox', { name: '搜索标签' }).fill('测试标签');
+    await page.getByRole('textbox', { name: '搜索标签' }).press('Enter');
     assert(await page.evaluate(() => window.saved.find(record => record.id === 'a').groups.includes('测试标签')));
+    assert.strictEqual(await page.locator('.record-tag-panel').count(), 1, 'Creating a tag must keep panel open');
+    await key(13);
+    assert.strictEqual(await page.evaluate(() => window.launched.length), 0, 'Panel Enter must not execute a command');
+    await key(27);
     await page.locator('.tag[data-group="测试标签"]').click({ button: 'right' });
     await menuClick('重命名标签');
     await page.locator('#tagInput').fill('重命名');
@@ -126,17 +137,83 @@ async function main() {
     assert(!await page.evaluate(() => window.saved.some(record => record.groups.includes('重命名'))));
     await page.locator('.row[data-id="a"] .ant-tag-close-icon').first().click();
     assert(!await page.evaluate(() => window.saved.find(record => record.id === 'a').groups.includes('IP查询')));
+    assert.strictEqual(await page.locator('.tag[data-group="IP查询"] .n').innerText(), '0', 'Removing last association must retain the tag');
     await page.locator('.row[data-id="f"]').click({ button: 'right' });
-    await page.getByRole('menuitem').filter({ hasText: /^加入已有标签$/ }).hover();
-    await menuClick('开发');
+    await page.getByRole('checkbox', { name: '开发', exact: true }).check();
     assert(await page.evaluate(() => window.saved.find(record => record.id === 'f').groups.includes('开发')));
-    await page.locator('.row[data-id="f"]').click({ button: 'right' });
-    await page.getByRole('menuitem').filter({ hasText: /^移出标签$/ }).hover();
-    await menuClick('开发');
+    assert.strictEqual(await page.locator('.record-tag-panel').count(), 1);
+    await page.getByRole('checkbox', { name: '办公', exact: true }).check();
+    assert(await page.evaluate(() => window.saved.find(record => record.id === 'f').groups.includes('办公')));
+    await page.screenshot({ path: path.join(output, 'record-tag-panel.png'), animations: 'disabled' });
+    await page.getByRole('checkbox', { name: '开发', exact: true }).uncheck();
     assert(!await page.evaluate(() => window.saved.find(record => record.id === 'f').groups.includes('开发')));
-    await page.locator('.row[data-id="f"]').click({ button: 'right' });
-    await menuClick('删除这条记录');
+    await page.getByRole('textbox', { name: '搜索标签' }).fill('办公');
+    assert.strictEqual(await page.getByRole('checkbox').count(), 1);
+    assert.strictEqual(await page.locator('.row').count(), 6, 'Tag search must not filter records');
+    await page.getByRole('button', { name: '删除这条记录', exact: true }).click();
     assert(!await page.evaluate(() => window.saved.some(record => record.id === 'f')));
+
+    await boot();
+    await page.locator('.tag[data-group="办公"]').click();
+    await page.locator('.row[data-id="d"]').click({ button: 'right' });
+    await page.getByRole('checkbox', { name: '办公', exact: true }).uncheck();
+    assert.strictEqual(await page.locator('.row').count(), 0);
+    assert.strictEqual(await page.locator('.record-tag-panel').count(), 1, 'Removing active filter tag must not unmount panel');
+    await page.getByRole('checkbox', { name: '开发', exact: true }).check();
+    assert(await page.evaluate(() => window.saved.find(record => record.id === 'd').groups.includes('开发')));
+    await key(27);
+
+    await page.evaluate(() => sessionStorage.setItem('reload-fixture', '1'));
+    await page.reload();
+    await page.locator('.tag[data-group="办公"]').waitFor();
+    assert.strictEqual(await page.locator('.tag[data-group="办公"] .n').innerText(), '0', 'Zero-count tag must survive reopening');
+    await page.locator('.tag[data-group=""]').click();
+    await page.locator('.row[data-id="b"]').click({ button: 'right' });
+    await page.getByRole('button', { name: '删除这条记录', exact: true }).click();
+    assert.strictEqual(await page.locator('.tag[data-group="项目文件夹"] .n').innerText(), '0', 'Deleting last record must retain its tags');
+    await page.locator('#tagAdd').click();
+    await page.locator('#tagInput').fill('持久空标签');
+    await page.locator('#tagConfirm').click();
+    await page.evaluate(() => sessionStorage.setItem('reload-fixture', '1'));
+    await page.reload();
+    await page.locator('.tag[data-group="持久空标签"]').waitFor();
+    assert.strictEqual(await page.locator('.tag[data-group="持久空标签"] .n').innerText(), '0');
+    await page.locator('.tag[data-group="持久空标签"]').click({ button: 'right' });
+    await menuClick('删除标签');
+    await page.evaluate(() => sessionStorage.setItem('reload-fixture', '1'));
+    await page.reload();
+    await page.locator('.row').first().waitFor();
+    assert.strictEqual(await page.locator('.tag[data-group="持久空标签"]').count(), 0, 'Deleted tag must not return after reopening');
+
+    await boot();
+    await page.evaluate(() => {
+      window.saved[0].groups = Array.from({ length: 40 }, (_, i) => `标签-${i}`);
+      window.ready();
+    });
+    for (const width of [800, 375]) {
+      await page.setViewportSize({ width, height: 570 });
+      await page.locator('.row[data-id="a"]').click({ button: 'right', position: { x: width - 40, y: 40 } });
+      await page.getByRole('textbox', { name: '搜索标签' }).waitFor();
+      await page.locator('.panel-tags .rc-virtual-list-holder').evaluate(el => { el.scrollTop = el.scrollHeight; });
+      const panelLayout = await page.locator('.record-tag-panel').evaluate(el => {
+        const panel = el.getBoundingClientRect(), list = el.querySelector('.rc-virtual-list-holder'), search = el.querySelector('.panel-search').getBoundingClientRect(), footer = el.querySelector('.panel-footer').getBoundingClientRect();
+        return { fits: panel.left >= 0 && panel.right <= innerWidth && panel.top >= 0 && panel.bottom <= innerHeight,
+          scrolls: list.scrollHeight > list.clientHeight, fixed: search.bottom <= list.getBoundingClientRect().top && footer.top >= list.getBoundingClientRect().bottom };
+      });
+      assert(panelLayout.fits && panelLayout.scrolls && panelLayout.fixed, 'Only tag list should scroll within viewport');
+      await page.screenshot({ path: path.join(output, `record-tag-panel-many-${width}.png`), animations: 'disabled' });
+      await key(27);
+      await page.locator('.row[data-id="a"]').evaluate(el => el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: innerWidth - 8, clientY: innerHeight - 8 })));
+      await page.getByRole('textbox', { name: '搜索标签' }).waitFor();
+      await page.waitForFunction(() => [...document.querySelectorAll('.record-panel-popover')].some(el => getComputedStyle(el).opacity === '1'));
+      await page.screenshot({ path: path.join(output, `panel-bottom-${width}.png`), animations: 'disabled' });
+      assert(await page.locator('.record-tag-panel').evaluate(el => {
+        const box = el.getBoundingClientRect();
+        return box.top >= 0 && box.bottom <= innerHeight && box.left >= 0 && box.right <= innerWidth;
+      }), 'Panel opened at bottom-right must be fully visible');
+      await key(27);
+    }
+    await page.setViewportSize({ width: 800, height: 570 });
 
     await boot();
     await page.evaluate(() => { window.failSpawn = true; });
@@ -164,6 +241,12 @@ async function main() {
       const chip = page.locator('.chip').first();
       await chip.hover();
       assert(await chip.evaluate(el => el.querySelector('.chip-name').getBoundingClientRect().right <= el.querySelector('.ant-tag-close-icon').getBoundingClientRect().left));
+      const chipWidth = await chip.evaluate(el => el.getBoundingClientRect().width);
+      const close = chip.locator('.ant-tag-close-icon');
+      await close.hover();
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('.chip .ant-tag-close-icon')).color === 'rgb(255, 77, 79)');
+      assert.strictEqual(await chip.evaluate(el => el.getBoundingClientRect().width), chipWidth, 'Close hover must not resize tags');
+      await page.screenshot({ path: path.join(output, `tag-close-hover-${width}.png`) });
       await page.locator('#tagAdd').click();
       await page.locator('#tagInput').fill('未保存标签');
       await page.screenshot({ path: path.join(output, `editor-${width}.png`) });

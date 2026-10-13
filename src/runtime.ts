@@ -1,7 +1,7 @@
-import { KEY } from './model.mjs';
+import { KEY, groupCounts } from './model.mjs';
 
 export type RecordItem = { id: string; command: string; time: number; kind: string; groups: string[] };
-type Document = { _id?: string; _rev?: string; records: RecordItem[] };
+type Document = { _id?: string; _rev?: string; records: RecordItem[]; groups?: string[] };
 type Rubick = {
   db: { get: (key: string) => Document | null; put: (doc: Document) => unknown };
   setSubInput: (callback: (data: { text?: string } | string) => void, placeholder: string, focus: boolean) => void;
@@ -33,14 +33,22 @@ export function log(kind: string, text: string) {
 log('session', '打开 React 插件');
 export function load(): RecordItem[] {
   try { const doc = rubick?.db.get(KEY); if (Array.isArray(doc?.records)) return doc.records; } catch { /* Fall back to browser storage. */ }
-  try { const records = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(records)) return records; } catch { /* Empty store. */ }
+  try { const data = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(data)) return data; if (Array.isArray(data?.records)) return data.records; } catch { /* Empty store. */ }
   return [];
 }
-export function save(records: RecordItem[]) {
+export function loadGroups(records: RecordItem[]): string[] {
+  let groups: string[] = [];
+  try {
+    const doc = rubick?.db ? rubick.db.get(KEY) : JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (Array.isArray(doc?.groups)) groups = doc.groups.filter((group: unknown): group is string => typeof group === 'string');
+  } catch { /* Legacy data has no independent tag list. */ }
+  return groupCounts(records, groups).map(([group]: [string, number]) => group);
+}
+export function save(records: RecordItem[], groups: string[]) {
   if (rubick?.db) {
     const old = rubick.db.get(KEY);
-    rubick.db.put({ _id: KEY, ...(old?._rev ? { _rev: old._rev } : {}), records });
-  } else localStorage.setItem(KEY, JSON.stringify(records));
+    rubick.db.put({ _id: KEY, ...(old?._rev ? { _rev: old._rev } : {}), records, groups });
+  } else localStorage.setItem(KEY, JSON.stringify({ records, groups }));
 }
 export async function copy(text: string) {
   try { const clipboard = window.require?.('electron').clipboard; if (clipboard) { clipboard.writeText(text); return; } } catch { /* Use browser clipboard. */ }

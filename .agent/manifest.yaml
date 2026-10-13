@@ -53,5 +53,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 已迁移 React + TypeScript + Ant Design；离线单 HTML 构建与真实浏览器回归
-  next: 重开插件确认 Ant Design 真机效果；用户确认后再提交迁移改动
+  phase: 标签名称列表持久化到历史文档；0 条标签仅在明确删除时移除
+  next: 重开插件确认空标签保留与标签面板交互；确认后提交本次调整

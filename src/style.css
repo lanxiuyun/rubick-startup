@@ -26,11 +26,28 @@ body{margin:0;overflow:hidden}
 .chip.ant-tag{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:110px;height:22px;margin:0;padding:0 6px;background:#e0ece7;border-color:#b5ccc2;color:#345c4e;border-radius:3px;font-size:11px;white-space:nowrap}
 .chip-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .chip .ant-tag-close-icon{display:flex;align-items:center;justify-content:center;flex:none;width:12px;height:18px;margin:0;color:#678477}
-.chip .ant-tag-close-icon:hover{color:#c34d4d}
+.chip .ant-tag-close-icon:hover{color:#ff4d4f}
 .chip.more{background:transparent;border-color:transparent;color:#727b82;padding:0 2px}
 .time{width:38px;flex:none;margin-left:6px;text-align:right;font:10px/1 Consolas,monospace;color:#727b82;font-variant-numeric:tabular-nums}
 .empty{padding:24px 0}
 .ant-dropdown-menu{max-height:300px;overflow-y:auto}
+.ant-message .ant-message-notice-content{pointer-events:none!important}
+.record-panel-anchor{position:fixed;width:1px;height:1px;pointer-events:none}
+.record-panel-popover .ant-popover-inner{padding:0;overflow:hidden}
+.record-tag-panel{display:flex;flex-direction:column;width:min(280px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+.panel-action{flex:none;padding:5px;border-bottom:1px solid #e7eaec}
+.panel-action .ant-btn{display:flex;align-items:center;justify-content:flex-start}
+.panel-search{display:flex;gap:6px;flex:none;padding:10px;border-bottom:1px solid #e7eaec}
+.panel-search .ant-input-affix-wrapper{min-width:0}
+.panel-tags{min-height:0;padding:6px}
+.panel-tags .rc-virtual-list-holder{scrollbar-width:none}
+.panel-tags .rc-virtual-list-holder::-webkit-scrollbar{display:none}
+.panel-tags .ant-checkbox-wrapper{display:flex;align-items:center;margin:0;padding:7px 8px;border-radius:4px;min-width:0}
+.panel-tags .ant-checkbox-wrapper:hover{background:#eef7f4}
+.panel-tags .ant-checkbox{flex:none}
+.panel-tags .ant-checkbox-wrapper>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel-create.ant-btn{flex:none;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel-footer{border-bottom:0;border-top:1px solid #e7eaec}
 .tag:focus-visible{outline:2px solid #237f70;outline-offset:1px}
 @media(max-width:480px){.app{padding:0 10px 10px}.bar{padding:0 4px}.row{gap:8px;padding:0 8px}.chips{max-width:30%;gap:3px}.chip.ant-tag{padding:0 5px}.time{margin-left:0}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important}}

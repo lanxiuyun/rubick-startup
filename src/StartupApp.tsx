@@ -1,15 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { App, Badge, Button, Dropdown, Empty, Input, Space, Tag, Tooltip, type MenuProps } from 'antd';
-import { CheckOutlined, CloseOutlined, CodeOutlined, CopyOutlined, DeleteOutlined, EditOutlined, FileTextOutlined, FolderOutlined, GlobalOutlined, PlusOutlined, TagsOutlined } from '@ant-design/icons';
+import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Tooltip } from 'antd';
+import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FileTextOutlined, FolderOutlined, GlobalOutlined, PlusOutlined } from '@ant-design/icons';
+import { RecordTagPanel } from './RecordTagPanel';
 import { groupCounts, groupsOf, guessKind, keyName, nextSelection, prune, ROW_H, visible } from './model.mjs';
-import { copy, load, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
+import { copy, load, loadGroups, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
 
 type State = { records: RecordItem[]; query: string; group: string; selected: string | null; pinned: string[] };
-type Editor = { mode: 'create' | 'rename' | 'record'; name: string; record?: RecordItem };
+type Editor = { mode: 'create' | 'rename'; name: string };
 
 function initialState(): State {
   const records = load();
-  return { records, query: '', group: '', selected: visible(records)[0]?.id ?? null, pinned: [] };
+  return { records, query: '', group: '', selected: visible(records)[0]?.id ?? null, pinned: loadGroups(records) };
 }
 
 export function StartupApp() {
@@ -21,6 +22,13 @@ export function StartupApp() {
   editing.current = editor;
   const [name, setName] = useState('');
   const [tagMenu, setTagMenu] = useState<string | null>(null);
+  const [panel, setPanel] = useState<{ id: string; x: number; y: number; groups: string[] } | null>(null);
+  const panelOpen = useRef(false);
+  panelOpen.current = !!panel;
+  const panelRecord = state.records.find(record => record.id === panel?.id);
+  const [viewport, setViewport] = useState({ width: innerWidth, height: innerHeight });
+  const panelListHeight = Math.max(36, Math.min(200, viewport.height - 180));
+  const panelHeight = panelListHeight + 150;
   const listRef = useRef<HTMLDivElement>(null);
   const [scroll, setScroll] = useState(0);
   const [height, setHeight] = useState(450);
@@ -33,8 +41,9 @@ export function StartupApp() {
   function update(next: State) { current.current = next; setState(next); }
   function commit(records: RecordItem[], extra: Partial<State> = {}) {
     const next = prune(records);
-    try { save(next); } catch (error) { void message.error(`保存失败：${(error as Error).message}`); }
-    update({ ...current.current, ...extra, records: next });
+    const pinned: string[] = groupCounts(records, extra.pinned ?? current.current.pinned).map(([group]: [string, number]) => group);
+    try { save(next, pinned); } catch (error) { void message.error(`保存失败：${(error as Error).message}`); }
+    update({ ...current.current, ...extra, records: next, pinned });
   }
   function clearScroll() { if (listRef.current) listRef.current.scrollTop = 0; setScroll(0); }
   function input(text: string) { update({ ...current.current, query: text, selected: null }); clearScroll(); }
@@ -60,8 +69,7 @@ export function StartupApp() {
     const value = name.trim();
     if (!value || !editor) { setEditor(null); return; }
     const snapshot = current.current;
-    if (editor.mode === 'record') editGroups(editor.record!, value);
-    else if (editor.mode === 'create') {
+    if (editor.mode === 'create') {
       commit(snapshot.records, { pinned: [...new Set([...snapshot.pinned, value])], group: value, selected: null });
       clearScroll();
     } else {
@@ -75,32 +83,10 @@ export function StartupApp() {
     commit(snapshot.records.map(record => ({ ...record, groups: groupsOf(record).filter((tag: string) => tag !== group) })),
       { pinned: snapshot.pinned.filter(tag => tag !== group), group: snapshot.group === group ? '' : snapshot.group, selected: null });
   }
-  function recordMenu(record: RecordItem): MenuProps {
-    const tags: string[] = groupsOf(record);
-    const available = counts.filter(([tag]) => !tags.includes(tag));
-    return {
-      items: [
-        { key: 'copy', icon: <CopyOutlined />, label: '复制命令' },
-        { key: 'newgroup', icon: <PlusOutlined />, label: '新建标签并加入…' },
-        ...(available.length ? [{ key: 'add', icon: <TagsOutlined />, label: '加入已有标签', children: available.map(([tag]) => ({ key: `add:${tag}`, label: tag })) }] : []),
-        ...(tags.length ? [{ key: 'remove', label: '移出标签', children: tags.map(tag => ({ key: `remove:${tag}`, label: tag })) }] : []),
-        { type: 'divider' as const }, { key: 'delete', icon: <DeleteOutlined />, danger: true, label: '删除这条记录' }
-      ],
-      onClick: ({ key, domEvent }) => {
-        domEvent.stopPropagation();
-        if (key === 'copy') void copy(record.command).then(() => message.success('已复制命令'), () => message.error('复制失败'));
-        else if (key === 'newgroup') openEditor({ mode: 'record', name: '', record });
-        else if (key === 'delete') commit(current.current.records.filter(item => item.id !== record.id), { selected: null });
-        else if (key.startsWith('add:')) editGroups(record, key.slice(4));
-        else if (key.startsWith('remove:')) editGroups(record, key.slice(7), true);
-      }
-    };
-  }
-
   useEffect(() => {
     const initialize = () => {
       const snapshot = current.current, records = load();
-      update({ ...snapshot, records, selected: snapshot.query.trim() ? null : visible(records, '', snapshot.group)[0]?.id ?? null });
+      update({ ...snapshot, records, pinned: loadGroups(records), selected: snapshot.query.trim() ? null : visible(records, '', snapshot.group)[0]?.id ?? null });
       clearScroll();
       try { rubick?.setExpendHeight(570); } catch { /* Optional host capability. */ }
     };
@@ -109,6 +95,10 @@ export function StartupApp() {
       rubick?.onPluginReady(initialize);
     } catch (error) { void message.error(`接管搜索框失败：${(error as Error).message}`); }
     const onKey = (event: KeyboardEvent) => {
+      if (panelOpen.current) {
+        if (keyName(event) === 'escape') { event.preventDefault(); setPanel(null); }
+        return;
+      }
       if (editing.current || (event.target as HTMLElement)?.closest?.('input,textarea,.ant-dropdown')) return;
       const key = keyName(event), snapshot = current.current;
       const filtered: RecordItem[] = visible(snapshot.records, snapshot.query, snapshot.group);
@@ -122,11 +112,20 @@ export function StartupApp() {
       } else if (key === 'escape') { input(''); }
     };
     window.addEventListener('keydown', onKey, true);
-    const closeMenu = (event: MouseEvent) => { if (!(event.target as HTMLElement).closest('.ant-dropdown,.filter-slot')) setTagMenu(null); };
+    const closeMenu = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.ant-dropdown,.filter-slot')) setTagMenu(null);
+      if (!target.closest('.record-tag-panel,.record-panel-anchor')) setPanel(null);
+    };
     document.addEventListener('click', closeMenu);
     return () => { window.removeEventListener('keydown', onKey, true); document.removeEventListener('click', closeMenu); };
   }, []);
 
+  useLayoutEffect(() => {
+    const resize = () => setViewport({ width: innerWidth, height: innerHeight });
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
   useLayoutEffect(() => {
     const element = listRef.current!;
     const observer = new ResizeObserver(() => setHeight(element.clientHeight));
@@ -174,17 +173,25 @@ export function StartupApp() {
             const date = new Date(record.time), today = new Date(now());
             const sameDay = date.toDateString() === today.toDateString();
             const time = sameDay ? `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` : `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            return <Dropdown key={record.id} trigger={['contextMenu']} menu={recordMenu(record)}>
-              <div className={`row${record.id === state.selected ? ' sel' : ''}`} data-id={record.id} style={{ top: (from + offset) * ROW_H, height: ROW_H }} onClick={() => launch(record.command)}>
+            return <div key={record.id} className={`row${record.id === state.selected ? ' sel' : ''}`} data-id={record.id} style={{ top: (from + offset) * ROW_H, height: ROW_H }} onClick={() => launch(record.command)}
+                onContextMenu={event => { event.preventDefault(); setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); }}>
                 <span className={`ico ${kind}`}><Icon /></span><span className="cmd" title={record.command}>{record.command}</span>
                 <span className="chips" onClick={event => event.stopPropagation()}>
                   {tags.slice(0, 2).map(group => <Tag key={group} className="chip" closable onClose={event => { event.preventDefault(); event.stopPropagation(); editGroups(record, group, true); }}><span className="chip-name" title={group}>{group}</span></Tag>)}
                   {tags.length > 2 && <Tag className="chip more">+{tags.length - 2}</Tag>}
                 </span><span className="time">{time}</span>
-              </div>
-            </Dropdown>;
+              </div>;
           })}
         </div>}
     </div>
+    {panel && panelRecord && <Popover open placement="bottomLeft" arrow={false} trigger={[]} autoAdjustOverflow={false}
+      align={{ points: ['tl', 'tl'], offset: [0, 0], overflow: { adjustX: false, adjustY: false } }} overlayClassName="record-panel-popover"
+      content={<RecordTagPanel key={panel.id} record={panelRecord} listHeight={panelListHeight} groups={[...new Set([...panel.groups, ...counts.map(([group]) => group)])]}
+        onToggle={(group, remove) => editGroups(panelRecord, group, remove)}
+        onCopy={() => { void copy(panelRecord.command).then(() => message.success('已复制命令'), () => message.error('复制失败')); }}
+        onDelete={() => { commit(current.current.records.filter(record => record.id !== panel.id), { selected: null }); setPanel(null); }}
+        onClose={() => setPanel(null)} />}>
+      <span className="record-panel-anchor" style={{ left: Math.max(12, Math.min(panel.x, viewport.width - 292)), top: Math.max(12, Math.min(panel.y, viewport.height - panelHeight - 12)) }} />
+    </Popover>}
   </div>;
 }
