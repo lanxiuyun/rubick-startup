@@ -5,7 +5,7 @@ import { StartupApp } from './StartupApp';
 import './style.css';
 
 createRoot(document.getElementById('root')!).render(
-  <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#237f70', borderRadius: 5, fontSize: 13, fontFamily: '"Segoe UI","Microsoft YaHei",sans-serif', colorBgContainer: '#ffffff' } }}>
+  <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#1677ff', borderRadius: 5, fontSize: 13, fontFamily: '"Segoe UI","Microsoft YaHei",sans-serif', colorBgContainer: '#ffffff' } }}>
     <AntApp><StartupApp /></AntApp>
   </ConfigProvider>
 );

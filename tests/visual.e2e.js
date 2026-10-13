@@ -64,6 +64,14 @@ async function main() {
   try {
     await boot();
     assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), 'a');
+    assert.strictEqual(await page.locator('.row.sel').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(234, 243, 255)', 'Selected rows must use the blue theme');
+    assert.strictEqual(await page.locator('.tag.on').evaluate(el => getComputedStyle(el).color), 'rgb(22, 104, 220)');
+    await page.locator('.tag.on').focus();
+    assert(await page.locator('.tag.on').evaluate(el => {
+      const style = getComputedStyle(el);
+      return style.borderTopColor === 'rgba(0, 0, 0, 0)' && style.outlineStyle === 'none' && style.boxShadow === 'none';
+    }), 'Selected filter must not show a border or focus ring');
+    await page.locator('.tag.on').evaluate(el => el.blur());
     await key(13);
     await page.waitForFunction(() => window.launched.length === 1);
     assert.strictEqual(await page.evaluate(() => window.launched[0].args[3]), 'ipconfig /all');
@@ -244,7 +252,15 @@ async function main() {
       const chipWidth = await chip.evaluate(el => el.getBoundingClientRect().width);
       const close = chip.locator('.ant-tag-close-icon');
       await close.hover();
-      await page.waitForFunction(() => getComputedStyle(document.querySelector('.chip .ant-tag-close-icon')).color === 'rgb(255, 77, 79)');
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('.chip .ant-tag-close-icon')).color === 'rgb(224, 32, 32)');
+      await page.waitForFunction(() => ['rgb(255, 225, 225)', 'rgba(255, 225, 225, 1)'].includes(getComputedStyle(document.querySelector('.chip .ant-tag-close-icon')).backgroundColor));
+      assert.strictEqual(await chip.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(220, 234, 255)');
+      assert(await close.evaluate(el => {
+        const box = el.getBoundingClientRect(), icon = el.querySelector('svg').getBoundingClientRect();
+        return box.width === 18 && box.height === 18 &&
+          Math.abs((box.left + box.right - icon.left - icon.right) / 2) < 0.5 &&
+          Math.abs((box.top + box.bottom - icon.top - icon.bottom) / 2) < 0.5;
+      }), 'Close glyph must be centered in its 18px square');
       assert.strictEqual(await chip.evaluate(el => el.getBoundingClientRect().width), chipWidth, 'Close hover must not resize tags');
       await page.screenshot({ path: path.join(output, `tag-close-hover-${width}.png`) });
       await page.locator('#tagAdd').click();

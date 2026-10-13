@@ -37,7 +37,7 @@ export function RecordTagPanel({ record, groups, listHeight, onToggle, onCopy, o
     </div>
     <div className="panel-tags">
       <VirtualList data={filtered} height={listHeight} itemHeight={36} itemKey={group => group} showScrollBar
-        styles={{ verticalScrollBar: { width: 6 }, verticalScrollBarThumb: { background: '#b5ccc2', borderRadius: 3 } }}>
+        styles={{ verticalScrollBar: { width: 6 }, verticalScrollBarThumb: { background: '#adc9ef', borderRadius: 3 } }}>
         {group => <Checkbox style={{ height: 36 }} checked={checked.includes(group)} onChange={event => onToggle(group, !event.target.checked)}><span title={group}>{group}</span></Checkbox>}
       </VirtualList>
       {canCreate && <Button className="panel-create" type="text" icon={<PlusOutlined />} onClick={create} title={`创建「${name}」并加入`}>创建「{name}」并加入</Button>}
