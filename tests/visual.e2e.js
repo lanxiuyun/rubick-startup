@@ -20,21 +20,25 @@ function adapter(seed) {
   window.savedGroups = persisted?.groups;
   window.launched = [];
   window.exited = 0;
+  window.windowActions = [];
   window.fileLogs = [];
+  window.dbReads = 0;
   window.openedPaths = [];
-  window.directories = ['Z:\\示例项目\\底部检测\\1-训练集', 'D:\\Projects\\ClientApp'];
+  window.directories = ['Z:\\示例项目\\底部检测\\1-训练集', 'D:\\Projects\\ClientApp', 'C:\\example\\path', '\\\\server\\share\\folder'];
+  window.whereMatches = ['python', 'ipython', 'wecom-cli', 'dsh', 'ipconfig', 'notepad', 'new-command'];
   window.copied = [];
   window.clock = Date.now();
   window.__rubickStartupNow = () => window.clock;
   window.rubick = {
-    db: { get: () => ({ _rev: '1-test', records: window.saved, groups: window.savedGroups }), put: doc => {
+    db: { get: () => { window.dbReads++; return { _rev: '1-test', records: window.saved, groups: window.savedGroups }; }, put: doc => {
       window.saved = doc.records; window.savedGroups = doc.groups; window.revision = doc._rev;
       sessionStorage.setItem('history-fixture', JSON.stringify(doc));
     } },
     setSubInput: callback => { window.search = callback; },
     setSubInputValue: value => { window.cleared = value; window.search({ text: value }); },
     onPluginReady: callback => { window.ready = callback; }, setExpendHeight: () => {},
-    outPlugin: () => { window.exited++; }
+    hideMainWindow: () => { window.windowActions.push('hide'); },
+    outPlugin: () => { window.windowActions.push('exit'); window.exited++; }
   };
   window.require = name => {
     if (name === 'path') return { join: (...parts) => parts.join('/') };
@@ -52,7 +56,10 @@ function adapter(seed) {
       shell: { openPath: async target => { window.openedPaths.push(target); return window.openPathError || ''; } }
     };
     if (name !== 'child_process') throw new Error('Isolated browser test');
-    return { spawn: (exe, args, options) => {
+    return {
+      spawnSync: (exe, args) => exe === 'where.exe' && window.whereMatches.includes(args[0])
+        ? { status: 0, stdout: `C:\\Tools\\${args[0]}.exe\r\n` } : { status: 1, stdout: '' },
+      spawn: (exe, args, options) => {
       if (window.throwSpawn) throw new Error('模拟启动失败');
       window.launched.push({ exe, args, options });
       const child = { once: (type, callback) => {
@@ -61,7 +68,8 @@ function adapter(seed) {
         return child;
       }, stderr: { on: (type, callback) => { if (window.commandError) callback(new TextEncoder().encode(window.commandError)); } }, unref: () => { window.unreffed = true; } };
       return child;
-    } };
+      }
+    };
   };
 }
 
@@ -82,7 +90,11 @@ async function main() {
   const menuClick = async text => { await page.getByRole('menuitem').filter({ hasText: new RegExp(`^${text}$`) }).click(); };
   try {
     await boot();
+    assert.strictEqual(await page.evaluate(() => window.dbReads), 1, 'Initial render must load the Rubick document once');
     assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), 'a');
+    assert.strictEqual(await page.locator('.ico.path').count(), 1);
+    assert.strictEqual(await page.locator('.ico.term').count(), 5, 'Commands including notepad, calc and legacy URL records must share the command icon');
+    assert.strictEqual(await page.locator('.ico.pad,.ico.url').count(), 0);
     assert.strictEqual(await page.locator('.row.sel').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(234, 243, 255)', 'Selected rows must use the blue theme');
     assert.strictEqual(await page.locator('.tag.on').evaluate(el => getComputedStyle(el).color), 'rgb(22, 104, 220)');
     await page.locator('.tag.on').focus();
@@ -95,13 +107,15 @@ async function main() {
     await page.waitForFunction(() => window.launched.length === 1);
     assert.strictEqual(await page.evaluate(() => window.launched[0].args.at(-1)), 'ipconfig /all');
     await page.waitForFunction(() => window.exited === 1);
-    assert(await page.evaluate(() => window.fileLogs.some(entry => entry.file.endsWith('rubick-startup.log') && entry.text.includes('cmd-close'))));
+    assert(await page.evaluate(() => window.fileLogs.some(entry => entry.file.endsWith('rubick-startup.log') && entry.text.includes('interactive-command-spawn'))));
     assert.strictEqual(await page.evaluate(() => window.cleared), '');
     assert.strictEqual(await page.locator('.row.sel').count(), 0);
     await page.evaluate(() => { window.clock += 500; });
     await key(13);
     assert.strictEqual(await page.evaluate(() => window.launched.length), 1, 'Second Enter must not repeat execution');
+    const readsBeforeReady = await page.evaluate(() => window.dbReads);
     await page.evaluate(() => window.ready());
+    assert.strictEqual(await page.evaluate(() => window.dbReads), readsBeforeReady + 1, 'Plugin-ready callback must read the Rubick document once');
     assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), 'a');
     await key(40);
     assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), 'b');
@@ -114,7 +128,33 @@ async function main() {
     await key(13);
     await page.waitForFunction(() => window.launched.length === 2);
     assert.strictEqual(await page.evaluate(() => window.launched[1].args.at(-1)), 'notepad');
+    await page.waitForFunction(() => window.exited === 2);
+    assert.deepStrictEqual(await page.evaluate(() => window.windowActions), ['hide', 'exit', 'hide', 'exit'], 'Successful launches including notepad must hide the host before exiting the plugin');
     assert.strictEqual(await page.evaluate(() => window.revision), '1-test');
+
+    for (const command of ['python', 'ipython', 'wecom-cli', 'dsh', 'python missing.py', 'dsh --profile missing', 'echo hello']) {
+      await boot();
+      await page.evaluate(() => { window.exitCode = 2; });
+      await search(command);
+      await key(13);
+      await page.waitForFunction(() => window.launched.length === 1);
+      assert.strictEqual(await page.evaluate(() => window.launched[0].exe), 'cmd.exe');
+      assert.deepStrictEqual(await page.evaluate(() => window.launched[0].args), ['/d', '/s', '/u', '/k', command], 'Available bare executables should open in a persistent terminal');
+      await page.waitForFunction(() => window.exited === 1);
+      assert(await page.evaluate(value => window.saved.some(record => record.command === value), command), `${command} should enter history after PATH resolution and process spawn`);
+    }
+    await boot();
+    await page.evaluate(() => { window.failSpawn = true; });
+    await search('ipython');
+    await key(13);
+    await page.getByText('启动失败：模拟进程错误').waitFor();
+    assert.strictEqual(await page.evaluate(() => window.saved.some(record => record.command === 'ipython')), false, 'Failed console launch must not enter history');
+    await boot();
+    await page.evaluate(() => { window.whereMatches = []; window.exitCode = 1; window.commandError = '不是内部或外部命令'; });
+    await search('missing-tool');
+    await key(13);
+    await page.getByText('启动失败：命令不存在或不可访问：missing-tool').waitFor();
+    assert.strictEqual(await page.evaluate(() => window.saved.some(record => record.command === 'missing-tool')), false, 'A missing bare command must not enter history');
 
     await boot();
     await search('Z:\\示例项目\\底部检测\\1-训练集');
@@ -127,15 +167,21 @@ async function main() {
     const traces = await page.evaluate(() => window.fileLogs.map(entry => entry.text).join('\n'));
     for (const stage of ['request', 'stat', 'explorer-request', 'explorer-spawn', 'result', 'plugin-exit']) assert(traces.includes(stage), `Missing file diagnostic: ${stage}`);
 
-    for (const target of ['Z:\\示例项目\\训练 数据 & 结果', '\\\\server\\share\\示例目录', '"Z:\\示例项目\\带 空格"']) {
+    for (const [target, expected] of [
+      ['Z:\\示例项目\\训练 数据 & 结果', 'Z:\\示例项目\\训练 数据 & 结果'],
+      ['\\\\\\\server\\\\share\\\\folder', '\\\\server\\share\\folder'],
+      ['"Z:\\示例项目\\带 空格"', 'Z:\\示例项目\\带 空格'],
+      ['C:\\\\example\\\\path', 'C:\\example\\path'],
+      ['C:/example/path', 'C:\\example\\path'],
+      ['C:/example\\path', 'C:\\example\\path']
+    ]) {
       await boot();
-      const unquoted = target.startsWith('"') ? target.slice(1, -1) : target;
-      await page.evaluate(value => { window.directories.push(value); }, unquoted);
+      await page.evaluate(value => { window.directories.push(value); }, expected);
       await search(target);
       await key(13);
       await page.waitForFunction(() => window.launched.length === 1);
       assert.strictEqual(await page.evaluate(() => window.launched[0].exe), 'explorer.exe');
-      assert.deepStrictEqual(await page.evaluate(() => window.launched[0].args), [unquoted]);
+      assert.deepStrictEqual(await page.evaluate(() => window.launched[0].args), [expected]);
     }
     await boot();
     await page.evaluate(() => { window.failSpawn = true; });
@@ -143,10 +189,11 @@ async function main() {
     await key(13);
     await page.getByText('启动失败：模拟进程错误').waitFor();
     assert.strictEqual(await page.evaluate(() => window.exited), 0);
+    assert.deepStrictEqual(await page.evaluate(() => window.windowActions), [], 'Failed launches must leave the host visible');
     const failedRecord = await page.evaluate(() => window.saved.find(record => record.command === 'notepad'));
     assert(failedRecord.groups.includes('error'), 'Previously successful command must receive the error tag after a failed run');
     assert(failedRecord.groups.includes('办公'), 'Failure tagging must preserve existing tags');
-    assert.strictEqual(failedRecord.time, records.find(record => record.command === 'notepad').time, 'Failed retry must not update last successful run time');
+    assert.strictEqual(failedRecord.time, await page.evaluate(() => window.clock), 'Failed retry must update last attempt time');
     assert(await page.locator('.row').filter({ hasText: 'notepad' }).locator('.chip').filter({ hasText: 'error' }).count());
     assert.strictEqual(await page.locator('.row').filter({ hasText: 'notepad' }).locator('.chip.error').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 227, 227)');
     assert.strictEqual(await page.locator('.row').filter({ hasText: 'notepad' }).locator('.chip.error').evaluate(el => getComputedStyle(el).color), 'rgb(180, 35, 24)');
@@ -168,7 +215,7 @@ async function main() {
     const failedPath = await page.evaluate(() => window.saved.find(record => record.command === 'D:\\Projects\\ClientApp'));
     assert(failedPath.groups.includes('error'), 'Previously successful path must receive the error tag when it no longer opens');
     assert(failedPath.groups.includes('项目文件夹') && failedPath.groups.includes('开发'));
-    assert.strictEqual(failedPath.time, records.find(record => record.command === 'D:\\Projects\\ClientApp').time);
+    assert.strictEqual(failedPath.time, await page.evaluate(() => window.clock));
 
     await page.evaluate(() => { window.failSpawn = false; window.clock += 500; });
     await search('notepad');
@@ -191,16 +238,16 @@ async function main() {
     await page.evaluate(() => { window.exitCode = 1; window.commandError = '不是内部或外部命令'; });
     await search('missing-command');
     await key(13);
-    await page.getByText('启动失败：不是内部或外部命令').waitFor();
+    await page.getByText('启动失败：命令不存在或不可访问：missing-command').waitFor();
     assert.strictEqual(await page.evaluate(() => window.exited), 0);
     assert.strictEqual(await page.evaluate(() => window.saved.some(record => record.command === 'missing-command')), false, 'Failed commands must not be added to history');
     assert.strictEqual(await page.locator('.row').filter({ hasText: 'missing-command' }).count(), 0);
     await boot();
     await page.evaluate(() => { window.pendingCommand = true; });
-    await search('long-command');
+    await search('python long-script.py');
     await key(13);
     await page.waitForTimeout(2800);
-    assert.strictEqual(await page.evaluate(() => window.exited), 0, 'Starting cmd is not successful command completion');
+    assert.strictEqual(await page.evaluate(() => window.exited), 1, 'A launched tool must not wait for completion');
     assert.strictEqual(await page.getByText('启动失败：启动请求超时').count(), 0);
 
     await boot();
@@ -417,6 +464,7 @@ async function main() {
       await host.locator('#search').fill('notepad');
       await host.locator('#search').press('Enter');
       await host.waitForFunction(() => window.launched.includes('notepad'));
+      await host.waitForFunction(() => window.hidden && window.exited);
       assert.strictEqual(await host.locator('#search').inputValue(), '');
       await host.close();
     }

@@ -55,5 +55,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 搜索和标签筛选有结果时自动选中第一行；列表滚动条改为窄浅色样式
-  next: 在 Rubick 真机确认搜索结果高亮与滚动条观感
+  phase: 成功启动后显式隐藏主窗口再退出插件；失败继续停留；全套测试通过
+  next: 重开 fav 验证 notepad 与文件夹成功启动后 Rubick 窗口隐藏

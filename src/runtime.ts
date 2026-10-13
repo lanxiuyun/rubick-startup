@@ -1,4 +1,4 @@
-import { KEY, groupCounts } from './model.mjs';
+import { KEY, groupCounts, guessKind, normalizePath } from './model.mjs';
 
 export type RecordItem = { id: string; command: string; time: number; kind: string; groups: string[] };
 type Document = { _id?: string; _rev?: string; records: RecordItem[]; groups?: string[] };
@@ -9,6 +9,7 @@ type Rubick = {
   onPluginReady: (callback: () => void) => void;
   setExpendHeight: (height: number) => void;
   outPlugin: () => void;
+  hideMainWindow: () => void;
 };
 declare global {
   interface Window {
@@ -20,7 +21,6 @@ declare global {
 }
 export const rubick = window.rubick;
 export const now = () => window.__rubickStartupNow?.() ?? Date.now();
-const schedule = window.__rubickStartupSchedule ?? setTimeout;
 let fs: any, logPath = '';
 try {
   fs = window.require?.('fs');
@@ -36,18 +36,21 @@ try {
   const process = window.require?.('process');
   log('environment', JSON.stringify({ pid: process?.pid, execPath: process?.execPath, cwd: process?.cwd(), versions: process?.versions, logPath }));
 } catch (error) { log('environment', String(error)); }
-export function load(): RecordItem[] {
-  try { const doc = rubick?.db.get(KEY); if (Array.isArray(doc?.records)) return doc.records; } catch { /* Fall back to browser storage. */ }
-  try { const data = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(data)) return data; if (Array.isArray(data?.records)) return data.records; } catch { /* Empty store. */ }
-  return [];
-}
-export function loadGroups(records: RecordItem[]): string[] {
-  let groups: string[] = [];
+export function loadStore(): { records: RecordItem[]; pinned: string[] } {
+  let records: RecordItem[] = [], groups: string[] = [], loaded = false;
   try {
-    const doc = rubick?.db ? rubick.db.get(KEY) : JSON.parse(localStorage.getItem(KEY) || 'null');
+    const doc = rubick?.db.get(KEY);
+    if (Array.isArray(doc?.records)) { records = doc.records; loaded = true; }
     if (Array.isArray(doc?.groups)) groups = doc.groups.filter((group: unknown): group is string => typeof group === 'string');
-  } catch { /* Legacy data has no independent tag list. */ }
-  return groupCounts(records, groups).map(([group]: [string, number]) => group);
+  } catch { /* Fall back to browser storage. */ }
+  if (!loaded) {
+    try {
+      const data = JSON.parse(localStorage.getItem(KEY) || '[]');
+      if (Array.isArray(data)) records = data;
+      else if (Array.isArray(data?.records)) { records = data.records; groups = Array.isArray(data.groups) ? data.groups : []; }
+    } catch { /* Empty store. */ }
+  }
+  return { records, pinned: groupCounts(records, groups).map(([group]) => group) };
 }
 export function save(records: RecordItem[], groups: string[]) {
   if (rubick?.db) {
@@ -74,7 +77,8 @@ export function spawnCommand(command: string): Promise<void> {
       if (error) reject(error); else resolve();
     };
     try {
-      const target = command.startsWith('"') && command.endsWith('"') ? command.slice(1, -1) : command;
+      const rawTarget = command.startsWith('"') && command.endsWith('"') ? command.slice(1, -1) : command;
+      const target = guessKind(rawTarget) === 'path' ? normalizePath(rawTarget) : rawTarget;
       let directory = false;
       try {
         directory = fs?.statSync(target).isDirectory() ?? false;
@@ -94,32 +98,33 @@ export function spawnCommand(command: string): Promise<void> {
           finish();
         });
       } else {
-        const spawn = window.require?.('child_process').spawn;
-        if (!spawn) throw new Error('页面没有 child_process，无法执行命令');
-        const args = ['/d', '/s', '/u', '/c', command];
-        trace('cmd-request', { args });
-        const child = spawn('cmd.exe', args, { detached: true, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
-        child.once('spawn', () => trace('cmd-spawn', { pid: child.pid }));
-        const chunks: Uint8Array[] = [];
-        let size = 0;
-        child.stderr.on('data', (chunk: Uint8Array) => {
-          if (size >= 64 * 1024) return;
-          const part = chunk.subarray(0, 64 * 1024 - size);
-          chunks.push(part); size += part.length;
-        });
+        const childProcess = window.require?.('child_process');
+        if (!childProcess?.spawn) throw new Error('页面没有 child_process，无法执行命令');
+        const entry = /^\s*(?:"([^"]+)"|([^\s&|<>]+))/.exec(command);
+        if (!entry) throw new Error('无法识别命令入口');
+        const executable = entry[1] || entry[2];
+        const builtin = /^(assoc|break|call|cd|chdir|cls|color|copy|date|del|dir|echo|endlocal|erase|exit|for|ftype|goto|if|md|mkdir|mklink|move|path|pause|popd|prompt|pushd|rd|rem|ren|rename|rmdir|set|setlocal|shift|start|time|title|type|ver|verify|vol)$/i.test(executable) || /^[a-z]:$/i.test(executable);
+        if (!builtin) {
+          if (/["&|<>^%!*?()]/.test(executable)) throw new Error('无法识别命令入口');
+          let found = false;
+          if (/[\\/:]/.test(executable)) {
+            try { found = fs?.statSync(normalizePath(executable)).isFile() ?? false; } catch { /* Missing executable. */ }
+          } else {
+            const lookup = childProcess.spawnSync('where.exe', [executable], { encoding: 'utf8', windowsHide: true, timeout: 2500 });
+            trace('where-result', { executable, found: lookup.status === 0, error: lookup.error?.message });
+            if (lookup.error) throw lookup.error;
+            found = lookup.status === 0;
+          }
+          if (!found) throw new Error(`命令不存在或不可访问：${executable}`);
+        }
+        const args = ['/d', '/s', '/u', '/k', command];
+        trace('interactive-command-request', { args });
+        const child = childProcess.spawn('cmd.exe', args, { detached: true, windowsHide: false, stdio: 'ignore' });
         child.once('error', (error: Error) => finish(error));
-        child.once('close', (code: number | null, signal: string | null) => {
-          trace('cmd-close', { code, signal, stderrBytes: size });
+        child.once('spawn', () => {
+          trace('interactive-command-spawn', { pid: child.pid });
           child.unref();
-          if (code === 0) { finish(); return; }
-          const bytes = new Uint8Array(size);
-          let offset = 0;
-          chunks.forEach(chunk => { bytes.set(chunk, offset); offset += chunk.length; });
-          // cmd /u emits UTF-16LE; external programs can still emit UTF-8 or the Windows code page.
-          const unicode = bytes.some((byte, index) => index % 2 === 1 && byte === 0);
-          let detail = new TextDecoder(unicode ? 'utf-16le' : 'utf-8').decode(bytes);
-          if (!unicode && detail.includes('\uFFFD')) detail = new TextDecoder('gb18030').decode(bytes);
-          finish(new Error(detail.trim() || `命令退出码：${code ?? signal ?? '未知'}`));
+          finish();
         });
       }
     } catch (error) { finish(error as Error); }

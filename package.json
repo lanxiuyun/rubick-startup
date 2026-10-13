@@ -2,7 +2,7 @@
   "name": "rubick-startup",
   "pluginName": "启动收藏",
   "description": "Windows 运行框式输入、执行、记录历史并支持收藏；关键词：运行、启动、start、fav",
-  "version": "26.10.13",
+  "version": "1.0.0",
   "main": "public/index.html",
   "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA0OCA0OCc+PHJlY3Qgd2lkdGg9JzQ4JyBoZWlnaHQ9JzQ4JyByeD0nMTMnIGZpbGw9JyMyODY0ZjAnLz48cGF0aCBkPSdtMTggMTQgOSA4LTkgOCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZmZmJyBzdHJva2Utd2lkdGg9JzQnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPjxwYXRoIGQ9J00yMyAzNmgxMycgZmlsbD0nbm9uZScgc3Ryb2tlPScjZmZmJyBzdHJva2Utd2lkdGg9JzMuNScgc3Ryb2tlLWxpbmVjYXA9J3NxdWFyZScvPjwvc3ZnPg==",
   "pluginType": "ui",

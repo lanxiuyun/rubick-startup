@@ -2,6 +2,10 @@ export const KEY = 'rubick-startup/history-v2';
 export const LIMIT = 500;
 export const ROW_H = 56;
 export const groupsOf = record => Array.isArray(record.groups) ? record.groups : [];
+export const normalizePath = text => {
+  const path = String(text).replace(/\//g, '\\');
+  return path.startsWith('\\\\') ? `\\\\${path.slice(2).replace(/^\\+/, '').replace(/\\+/g, '\\')}` : path.replace(/\\+/g, '\\');
+};
 export const guessKind = text => /^[a-z][a-z0-9+.-]*:\/\//i.test(text.trim()) ? 'url'
   : /^[a-zA-Z]:[\\/]|^\\\\|^\.\.?[\\/]/.test(text.trim()) ? 'path' : 'command';
 

@@ -1,17 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Tooltip } from 'antd';
-import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FileTextOutlined, FolderOutlined, GlobalOutlined, PlusOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import { RecordTagPanel } from './RecordTagPanel';
 import { groupCounts, groupsOf, guessKind, keyName, nextSelection, prune, ROW_H, visible } from './model.mjs';
-import { copy, load, loadGroups, log, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
+import { copy, loadStore, log, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
 
 type State = { records: RecordItem[]; query: string; group: string; selected: string | null; pinned: string[] };
 type Editor = { mode: 'create' | 'rename'; name: string };
 const ERROR_GROUP = 'error';
 
 function initialState(): State {
-  const records = load();
-  return { records, query: '', group: '', selected: visible(records)[0]?.id ?? null, pinned: loadGroups(records) };
+  const { records, pinned } = loadStore();
+  return { records, query: '', group: '', selected: visible(records)[0]?.id ?? null, pinned };
 }
 
 export function StartupApp() {
@@ -64,14 +64,17 @@ export function StartupApp() {
       const existing = current.current.records.find(record => record.command === command);
       const record = { ...(existing || { id: `run-${stamp}-${Math.random().toString(36).slice(2, 7)}`, groups: [] }), command, time: stamp, kind: guessKind(command), groups: (existing?.groups ?? []).filter(group => group !== ERROR_GROUP) };
       commit([record, ...current.current.records.filter(item => item.id !== record.id)], { selected: null, query: '', pinned: current.current.pinned.filter(group => group !== ERROR_GROUP) });
+      log('window-hide', JSON.stringify({ command, stage: 'request', available: !!rubick?.hideMainWindow }));
+      rubick?.hideMainWindow?.();
+      log('window-hide', JSON.stringify({ command, stage: 'returned' }));
       log('plugin-exit', JSON.stringify({ command, stage: 'request', available: !!rubick?.outPlugin }));
       rubick?.outPlugin?.();
       log('plugin-exit', JSON.stringify({ command, stage: 'returned' }));
     }, error => {
       const existing = current.current.records.find(record => record.command === command);
-      if (existing && !groupsOf(existing).includes(ERROR_GROUP)) {
+      if (existing) {
         commit(current.current.records.map(record => record.id === existing.id
-          ? { ...record, groups: [...groupsOf(record), ERROR_GROUP] } : record));
+          ? { ...record, time: now(), groups: [...new Set([...groupsOf(record), ERROR_GROUP])] } : record));
       }
       log('plugin-stay', JSON.stringify({ command, error: error.message }));
       void message.error(`启动失败：${error.message}`, 0);
@@ -103,8 +106,8 @@ export function StartupApp() {
   }
   useEffect(() => {
     const initialize = () => {
-      const snapshot = current.current, records = load();
-      update({ ...snapshot, records, pinned: loadGroups(records), selected: visible(records, snapshot.query, snapshot.group)[0]?.id ?? null });
+      const snapshot = current.current, { records, pinned } = loadStore();
+      update({ ...snapshot, records, pinned, selected: visible(records, snapshot.query, snapshot.group)[0]?.id ?? null });
       clearScroll();
       try { rubick?.setExpendHeight(570); } catch { /* Optional host capability. */ }
     };
@@ -190,8 +193,8 @@ export function StartupApp() {
         : <div className="spacer" id="spacer" style={{ height: rows.length * ROW_H }}>
           {rows.slice(from, to).map((record, offset) => {
             const tags: string[] = groupsOf(record);
-            const kind = record.kind === 'path' ? 'path' : record.kind === 'url' ? 'url' : /^(notepad|calc)(\.exe)?$/i.test(record.command.trim()) ? 'pad' : 'term';
-            const Icon = kind === 'path' ? FolderOutlined : kind === 'url' ? GlobalOutlined : kind === 'pad' ? FileTextOutlined : CodeOutlined;
+            const kind = record.kind === 'path' ? 'path' : 'term';
+            const Icon = kind === 'path' ? FolderOutlined : CodeOutlined;
             const date = new Date(record.time), today = new Date(now());
             const sameDay = date.toDateString() === today.toDateString();
             const time = sameDay ? `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` : `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;

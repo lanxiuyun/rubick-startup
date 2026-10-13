@@ -1,7 +1,7 @@
 const assert = require('assert');
 
 async function main() {
-  const { visible, prune, groupCounts, guessKind, keyName, nextSelection, ROW_H, LIMIT, KEY } = await import('../src/model.mjs');
+  const { visible, prune, groupCounts, guessKind, normalizePath, keyName, nextSelection, ROW_H, LIMIT, KEY } = await import('../src/model.mjs');
   assert.strictEqual(KEY, 'rubick-startup/history-v2');
   assert.strictEqual(ROW_H, 56);
   assert.strictEqual(LIMIT, 500);
@@ -26,6 +26,11 @@ async function main() {
   assert.strictEqual(counts.get('空标签'), 0);
   assert.strictEqual(guessKind('https://example.com'), 'url');
   assert.strictEqual(guessKind('D:\\Projects'), 'path');
+  assert.strictEqual(guessKind('C:/dlcv/datasets/balloon'), 'path');
+  assert.strictEqual(normalizePath('C:/dlcv/datasets/balloon'), 'C:\\dlcv\\datasets\\balloon');
+  assert.strictEqual(normalizePath('C:\\\\dlcv\\\\datasets\\\\balloon'), 'C:\\dlcv\\datasets\\balloon');
+  assert.strictEqual(normalizePath('C:/dlcv\\datasets/balloon'), 'C:\\dlcv\\datasets\\balloon');
+  assert.strictEqual(normalizePath('\\\\\\\\server\\\\share\\\\folder'), '\\\\server\\share\\folder');
   assert.strictEqual(guessKind('notepad'), 'command');
   for (const [keyCode, expected] of [[13, 'enter'], [38, 'up'], [40, 'down'], [27, 'escape']]) assert.strictEqual(keyName({ keyCode }), expected);
   assert.strictEqual(keyName({ code: 'NumpadEnter' }), 'enter');
