@@ -120,10 +120,10 @@ async function main() {
     await key(40);
     assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), 'b');
     await search('notepad');
-    assert.strictEqual(await page.locator('.row').count(), 1);
-    assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), 'd', 'Search results must keep the first matching row selected');
+    assert.strictEqual(await page.locator('.row').count(), 2);
+    assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), '__current_input__', 'Input row must be selected before history matches');
     await page.evaluate(() => window.ready());
-    assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), 'd', 'Plugin reinitialization must preserve a selected search result');
+    assert.strictEqual(await page.locator('.row.sel').getAttribute('data-id'), '__current_input__', 'Plugin reinitialization must select the input row');
     await page.evaluate(() => { window.clock += 500; });
     await key(13);
     await page.waitForFunction(() => window.launched.length === 2);
@@ -131,6 +131,20 @@ async function main() {
     await page.waitForFunction(() => window.exited === 2);
     assert.deepStrictEqual(await page.evaluate(() => window.windowActions), ['hide', 'exit', 'hide', 'exit'], 'Successful launches including notepad must hide the host before exiting the plugin');
     assert.strictEqual(await page.evaluate(() => window.revision), '1-test');
+
+    await boot();
+    await search('note');
+    assert.strictEqual(await page.locator('.row.sel .cmd').innerText(), 'note');
+    assert.strictEqual(await page.locator('.row .cmd').nth(1).innerText(), 'notepad');
+    await page.locator('.row.sel').click({ button: 'right' });
+    assert.strictEqual(await page.locator('.record-tag-panel').count(), 0);
+    await key(40);
+    assert.strictEqual(await page.locator('.row.sel .cmd').innerText(), 'notepad');
+    await key(38);
+    await key(13);
+    await page.getByText('启动失败：命令不存在或不可访问：note').waitFor();
+    assert.strictEqual(await page.evaluate(() => window.launched.length), 0, 'Enter on raw input must not launch a fuzzy history match');
+    assert.strictEqual(await page.evaluate(() => window.saved.some(record => record.command === 'note')), false);
 
     for (const command of ['python', 'ipython', 'wecom-cli', 'dsh', 'python missing.py', 'dsh --profile missing', 'echo hello']) {
       await boot();

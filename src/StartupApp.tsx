@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Tooltip } from 'antd';
 import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import { RecordTagPanel } from './RecordTagPanel';
-import { groupCounts, groupsOf, guessKind, keyName, nextSelection, prune, ROW_H, visible } from './model.mjs';
+import { groupCounts, groupsOf, guessKind, INPUT_ROW_ID, keyName, listRows, nextSelection, prune, ROW_H, visible } from './model.mjs';
 import { copy, loadStore, log, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
 
 type State = { records: RecordItem[]; query: string; group: string; selected: string | null; pinned: string[] };
@@ -34,7 +34,7 @@ export function StartupApp() {
   const [scroll, setScroll] = useState(0);
   const [height, setHeight] = useState(450);
   const lastRun = useRef(-Infinity);
-  const rows: RecordItem[] = visible(state.records, state.query, state.group);
+  const rows: RecordItem[] = listRows(state.records, state.query, state.group);
   const counts: [string, number][] = groupCounts(state.records, state.pinned);
   const selectedIndex = rows.findIndex(record => record.id === state.selected);
 
@@ -49,7 +49,7 @@ export function StartupApp() {
   function clearScroll() { if (listRef.current) listRef.current.scrollTop = 0; setScroll(0); }
   function input(text: string) {
     const snapshot = current.current;
-    update({ ...snapshot, query: text, selected: visible(snapshot.records, text, snapshot.group)[0]?.id ?? null });
+    update({ ...snapshot, query: text, selected: listRows(snapshot.records, text, snapshot.group)[0]?.id ?? null });
     clearScroll();
   }
   function launch(raw: string) {
@@ -107,7 +107,7 @@ export function StartupApp() {
   useEffect(() => {
     const initialize = () => {
       const snapshot = current.current, { records, pinned } = loadStore();
-      update({ ...snapshot, records, pinned, selected: visible(records, snapshot.query, snapshot.group)[0]?.id ?? null });
+      update({ ...snapshot, records, pinned, selected: listRows(records, snapshot.query, snapshot.group)[0]?.id ?? null });
       clearScroll();
       try { rubick?.setExpendHeight(570); } catch { /* Optional host capability. */ }
     };
@@ -122,7 +122,7 @@ export function StartupApp() {
       }
       if (editing.current || (event.target as HTMLElement)?.closest?.('input,textarea,.ant-dropdown')) return;
       const key = keyName(event), snapshot = current.current;
-      const filtered: RecordItem[] = visible(snapshot.records, snapshot.query, snapshot.group);
+      const filtered: RecordItem[] = listRows(snapshot.records, snapshot.query, snapshot.group);
       if (key === 'enter') {
         event.preventDefault();
         launch(filtered.find(record => record.id === snapshot.selected)?.command ?? snapshot.query);
@@ -166,7 +166,7 @@ export function StartupApp() {
   const to = Math.min(rows.length, Math.ceil((scroll + height) / ROW_H) + 2);
   const filter = (group: string) => {
     const snapshot = current.current;
-    update({ ...snapshot, group, selected: visible(snapshot.records, snapshot.query, group)[0]?.id ?? null });
+    update({ ...snapshot, group, selected: listRows(snapshot.records, snapshot.query, group)[0]?.id ?? null });
     clearScroll();
   };
   const filterTag = (group: string, count: number) => <Tag className={`tag ${state.group === group ? 'on' : ''}`} data-group={group}
@@ -199,12 +199,12 @@ export function StartupApp() {
             const sameDay = date.toDateString() === today.toDateString();
             const time = sameDay ? `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` : `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             return <div key={record.id} className={`row${record.id === state.selected ? ' sel' : ''}`} data-id={record.id} style={{ top: (from + offset) * ROW_H, height: ROW_H }} onClick={() => launch(record.command)}
-                onContextMenu={event => { event.preventDefault(); setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); }}>
+                onContextMenu={event => { event.preventDefault(); if (record.id === INPUT_ROW_ID) return; setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); }}>
                 <span className={`ico ${kind}`}><Icon /></span><span className="cmd" title={record.command}>{record.command}</span>
                 <span className="chips" onClick={event => event.stopPropagation()}>
                   {tags.slice(0, 2).map(group => <Tag key={group} className={`chip${group === ERROR_GROUP ? ' error' : ''}`} closable onClose={event => { event.preventDefault(); event.stopPropagation(); editGroups(record, group, true); }}><span className="chip-name" title={group}>{group}</span></Tag>)}
                   {tags.length > 2 && <Tag className="chip more">+{tags.length - 2}</Tag>}
-                </span><span className="time">{time}</span>
+                </span><span className="time">{record.id === INPUT_ROW_ID ? '' : time}</span>
               </div>;
           })}
         </div>}

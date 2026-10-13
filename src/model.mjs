@@ -32,6 +32,12 @@ export function visible(records, query = '', group = '') {
     .sort((a, b) => b.time - a.time);
 }
 
+export const INPUT_ROW_ID = '__current_input__';
+export function listRows(records, query = '', group = '') {
+  const history = visible(records, query, group);
+  return query.trim() ? [{ id: INPUT_ROW_ID, command: query.trim(), time: 0, kind: guessKind(query), groups: [] }, ...history] : history;
+}
+
 export function prune(records) {
   const sorted = [...records].sort((a, b) => b.time - a.time);
   let plain = 0;
