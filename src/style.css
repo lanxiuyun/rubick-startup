@@ -14,7 +14,11 @@ body{margin:0;overflow:hidden}
 #tagAdd{flex:none;width:28px;height:28px;color:#727b82}
 .tag-editor{width:230px;flex:none}
 .tag-editor .ant-input{min-width:0}
-.list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;position:relative;padding:8px 0}
+.list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;position:relative;padding:8px 0;scrollbar-width:thin;scrollbar-color:#c5cdd3 transparent}
+.list::-webkit-scrollbar{width:8px}
+.list::-webkit-scrollbar-track{background:transparent}
+.list::-webkit-scrollbar-thumb{background:#c5cdd3;border:2px solid transparent;border-radius:8px;background-clip:padding-box}
+.list::-webkit-scrollbar-thumb:hover{background-color:#8e9ba4}
 .spacer{position:relative;width:100%}
 .row{position:absolute;left:0;right:0;display:flex;align-items:center;gap:12px;padding:0 12px;border-radius:4px;cursor:pointer}
 .row:hover{background:#f6f8f8}
@@ -25,9 +29,12 @@ body{margin:0;overflow:hidden}
 .chips{display:flex;align-items:center;gap:5px;flex:none;max-width:45%;overflow:hidden}
 .chip.ant-tag{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:150px;height:26px;margin:0;padding:0 4px 0 9px;background:#dceaff;border-color:transparent;color:#245ba5;border-radius:5px;font-size:12px;white-space:nowrap}
 .chip-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.chip.error.ant-tag{background:#ffe3e3;color:#b42318}
 .chip .ant-tag-close-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;margin:0;border-radius:3px;color:#6185b6;font-size:10px;line-height:1;transform:none}
 .chip .ant-tag-close-icon svg{display:block;width:10px;height:10px}
 .chip .ant-tag-close-icon:hover{color:#e02020;background:#ffe1e1}
+.chip.error.ant-tag .ant-tag-close-icon{color:#b42318}
+.chip.error.ant-tag .ant-tag-close-icon:hover{color:#8f1d15;background:#ffc9c9}
 .chip.more{background:transparent;border-color:transparent;color:#727b82;padding:0 2px}
 .time{width:38px;flex:none;margin-left:6px;text-align:right;font:10px/1 Consolas,monospace;color:#727b82;font-variant-numeric:tabular-nums}
 .empty{padding:24px 0}

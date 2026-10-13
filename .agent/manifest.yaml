@@ -8,6 +8,7 @@ features:
   input-layer:
     docs:
       - .agent/features/input-layer/README.md
+      - .agent/features/input-layer/命令执行成功退出插件-执行失败继续停留并显示错误的约定.md
     related:
       - rubick-plugin-loading
       - electron-sendinputevent-keyboard-events-are-synthetic
@@ -43,6 +44,7 @@ decisions:
   - .agent/decisions/2026-10-11-install-plugin-via-script-instead-of-rubick-dev-menu.md
 
 bugs:
+  - .agent/bugs/2026-10-13-文件夹路径被当成命令执行导致无法打开.md
   - .agent/bugs/2026-10-11-enter-key-in-rubick-search-box-does-nothing.md
   - .agent/bugs/2026-10-11-bridge-installed-but-reported-as-missing.md
   - .agent/bugs/2026-10-11-plugin-shows-no-name-description-keywords-or-icon.md
@@ -53,5 +55,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 行内标签选定 A 无边框柔和蓝色块；删除符正方形区域居中
-  next: 重开插件确认方案 A 标签与删除符居中效果；确认后提交样式调整
+  phase: 搜索和标签筛选有结果时自动选中第一行；列表滚动条改为窄浅色样式
+  next: 在 Rubick 真机确认搜索结果高亮与滚动条观感

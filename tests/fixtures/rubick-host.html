@@ -45,13 +45,13 @@ iframe{border:0;width:100%;flex:1;min-height:0;background:#fff}
    db:{get:()=>({_id:'rubick-startup/history-v2',records:host.hostRecords}),put:doc=>{host.hostRecords=doc.records}},
    setSubInput:cb=>{host.subInput=cb},
    setSubInputValue:value=>{host.document.getElementById('search').value=value;host.subInput({text:value})},
-   onPluginReady:()=>{},setExpendHeight:()=>{}
+   onPluginReady:()=>{},setExpendHeight:()=>{},outPlugin:()=>{host.exited=true}
   };
   window.require=name=>{
    if(name!=='child_process')throw new Error('Isolated E2E host');
    return {spawn:(exe,args)=>{
-    host.launched.push(args[3]);
-    const child={once:(type,cb)=>{if(type==='spawn')setTimeout(cb,0);return child},unref:()=>{}};
+    host.launched.push(args.at(-1));
+    const child={once:(type,cb)=>{if(type==='spawn')setTimeout(cb,0);if(type==='close')setTimeout(()=>cb(0,null),10);return child},stderr:{on:()=>{}},unref:()=>{}};
     return child;
    }};
   };

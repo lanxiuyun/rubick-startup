@@ -3,10 +3,11 @@ import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Toolti
 import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FileTextOutlined, FolderOutlined, GlobalOutlined, PlusOutlined } from '@ant-design/icons';
 import { RecordTagPanel } from './RecordTagPanel';
 import { groupCounts, groupsOf, guessKind, keyName, nextSelection, prune, ROW_H, visible } from './model.mjs';
-import { copy, load, loadGroups, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
+import { copy, load, loadGroups, log, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
 
 type State = { records: RecordItem[]; query: string; group: string; selected: string | null; pinned: string[] };
 type Editor = { mode: 'create' | 'rename'; name: string };
+const ERROR_GROUP = 'error';
 
 function initialState(): State {
   const records = load();
@@ -46,18 +47,35 @@ export function StartupApp() {
     update({ ...current.current, ...extra, records: next, pinned });
   }
   function clearScroll() { if (listRef.current) listRef.current.scrollTop = 0; setScroll(0); }
-  function input(text: string) { update({ ...current.current, query: text, selected: null }); clearScroll(); }
+  function input(text: string) {
+    const snapshot = current.current;
+    update({ ...snapshot, query: text, selected: visible(snapshot.records, text, snapshot.group)[0]?.id ?? null });
+    clearScroll();
+  }
   function launch(raw: string) {
     const command = raw.trim();
     if (!command) { void message.info('先输入路径或命令'); return; }
-    const stamp = now();
-    if (stamp - lastRun.current < 180) return;
-    lastRun.current = stamp;
-    const existing = current.current.records.find(record => record.command === command);
-    const record = { ...(existing || { id: `run-${stamp}-${Math.random().toString(36).slice(2, 7)}`, groups: [] }), command, time: stamp, kind: guessKind(command) };
-    commit([record, ...current.current.records.filter(item => item.id !== record.id)], { selected: null, query: '' });
+    const started = now();
+    if (started - lastRun.current < 180) return;
+    lastRun.current = started;
     try { rubick?.setSubInputValue(''); } catch { /* The command was captured before the callback replay. */ }
-    void spawnCommand(command).then(() => message.success('已提交给 Windows'), error => message.error(`启动失败：${error.message}`));
+    void spawnCommand(command).then(() => {
+      const stamp = now();
+      const existing = current.current.records.find(record => record.command === command);
+      const record = { ...(existing || { id: `run-${stamp}-${Math.random().toString(36).slice(2, 7)}`, groups: [] }), command, time: stamp, kind: guessKind(command), groups: (existing?.groups ?? []).filter(group => group !== ERROR_GROUP) };
+      commit([record, ...current.current.records.filter(item => item.id !== record.id)], { selected: null, query: '', pinned: current.current.pinned.filter(group => group !== ERROR_GROUP) });
+      log('plugin-exit', JSON.stringify({ command, stage: 'request', available: !!rubick?.outPlugin }));
+      rubick?.outPlugin?.();
+      log('plugin-exit', JSON.stringify({ command, stage: 'returned' }));
+    }, error => {
+      const existing = current.current.records.find(record => record.command === command);
+      if (existing && !groupsOf(existing).includes(ERROR_GROUP)) {
+        commit(current.current.records.map(record => record.id === existing.id
+          ? { ...record, groups: [...groupsOf(record), ERROR_GROUP] } : record));
+      }
+      log('plugin-stay', JSON.stringify({ command, error: error.message }));
+      void message.error(`启动失败：${error.message}`, 0);
+    });
   }
   function openEditor(value: Editor) { setName(value.name); setEditor(value); }
   function editGroups(record: RecordItem, group: string, remove = false) {
@@ -86,7 +104,7 @@ export function StartupApp() {
   useEffect(() => {
     const initialize = () => {
       const snapshot = current.current, records = load();
-      update({ ...snapshot, records, pinned: loadGroups(records), selected: snapshot.query.trim() ? null : visible(records, '', snapshot.group)[0]?.id ?? null });
+      update({ ...snapshot, records, pinned: loadGroups(records), selected: visible(records, snapshot.query, snapshot.group)[0]?.id ?? null });
       clearScroll();
       try { rubick?.setExpendHeight(570); } catch { /* Optional host capability. */ }
     };
@@ -143,7 +161,11 @@ export function StartupApp() {
 
   const from = Math.max(0, Math.floor(scroll / ROW_H) - 2);
   const to = Math.min(rows.length, Math.ceil((scroll + height) / ROW_H) + 2);
-  const filter = (group: string) => { update({ ...current.current, group, selected: null }); clearScroll(); };
+  const filter = (group: string) => {
+    const snapshot = current.current;
+    update({ ...snapshot, group, selected: visible(snapshot.records, snapshot.query, group)[0]?.id ?? null });
+    clearScroll();
+  };
   const filterTag = (group: string, count: number) => <Tag className={`tag ${state.group === group ? 'on' : ''}`} data-group={group}
     onClick={() => filter(group)} role="button" tabIndex={0} onKeyDown={event => { if (keyName(event) === 'enter') { event.stopPropagation(); filter(group); } }}>
     {group || '全部'}<Badge className="n" count={count} showZero overflowCount={99999} /></Tag>;
@@ -177,7 +199,7 @@ export function StartupApp() {
                 onContextMenu={event => { event.preventDefault(); setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); }}>
                 <span className={`ico ${kind}`}><Icon /></span><span className="cmd" title={record.command}>{record.command}</span>
                 <span className="chips" onClick={event => event.stopPropagation()}>
-                  {tags.slice(0, 2).map(group => <Tag key={group} className="chip" closable onClose={event => { event.preventDefault(); event.stopPropagation(); editGroups(record, group, true); }}><span className="chip-name" title={group}>{group}</span></Tag>)}
+                  {tags.slice(0, 2).map(group => <Tag key={group} className={`chip${group === ERROR_GROUP ? ' error' : ''}`} closable onClose={event => { event.preventDefault(); event.stopPropagation(); editGroups(record, group, true); }}><span className="chip-name" title={group}>{group}</span></Tag>)}
                   {tags.length > 2 && <Tag className="chip more">+{tags.length - 2}</Tag>}
                 </span><span className="time">{time}</span>
               </div>;

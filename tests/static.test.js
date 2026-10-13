@@ -13,7 +13,7 @@ for (const word of ['运行', '启动', 'start', 'fav']) assert(manifest.feature
 assert(/^data:image\/svg\+xml;base64,/.test(manifest.logo));
 for (const file of ['bridge', 'public/preload.js', 'public/package.json', 'public/logo.svg']) assert(!fs.existsSync(path.join(ROOT, file)));
 const app = read('src/StartupApp.tsx'), runtime = read('src/runtime.ts');
-for (const text of ['cmd.exe', 'detached: true', 'windowsHide: true', 'unref()', 'appendFileSync', '__rubickStartupNow']) assert(runtime.includes(text), `Missing runtime contract: ${text}`);
+for (const text of ['cmd.exe', 'explorer.exe', 'detached: true', 'windowsHide: true', 'unref()', 'appendFileSync', '__rubickStartupNow', "once('close'", 'child.stderr']) assert(runtime.includes(text), `Missing runtime contract: ${text}`);
 for (const text of ['setSubInput(', 'setSubInputValue', 'setExpendHeight', 'onPluginReady']) assert(app.includes(text), `Missing host contract: ${text}`);
 const installer = read('tools/install.js');
 for (const text of ['rubick-local-plugin.json', 'junction', 'LEGACY', 'features', 'rubick-startup-bridge']) assert(installer.includes(text));
