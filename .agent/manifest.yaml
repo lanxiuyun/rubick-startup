@@ -8,12 +8,14 @@ features:
   input-layer:
     docs:
       - .agent/features/input-layer/README.md
+      - .agent/features/input-layer/命令执行成功退出插件-执行失败继续停留并显示错误的约定.md
     related:
       - rubick-plugin-loading
       - electron-sendinputevent-keyboard-events-are-synthetic
   records-and-tags:
     docs:
       - .agent/features/records-and-tags/README.md
+      - .agent/features/records-and-tags/标签样式与完整-Rubick-窗口截图验收约定.md
     related:
       - rubick-plugin-loading
       - input-layer
@@ -42,6 +44,7 @@ decisions:
   - .agent/decisions/2026-10-11-install-plugin-via-script-instead-of-rubick-dev-menu.md
 
 bugs:
+  - .agent/bugs/2026-10-13-文件夹路径被当成命令执行导致无法打开.md
   - .agent/bugs/2026-10-11-enter-key-in-rubick-search-box-does-nothing.md
   - .agent/bugs/2026-10-11-bridge-installed-but-reported-as-missing.md
   - .agent/bugs/2026-10-11-plugin-shows-no-name-description-keywords-or-icon.md
@@ -52,5 +55,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 插件已在真机可用（输入 / 标签 / 虚拟滚动 / ↑↓ 选择都已验证）
-  next: 把 design 仓库里的 UI 方案（右侧控件组、标签计数、时间成列）落进 public/index.html
+  phase: 已清理临时 Esc 诊断代码与菜单关闭按钮，保留真机验证的双 webContents 监听逻辑
+  next: 后续输入层修改保留双 webContents 监听恢复与菜单焦点回归测试

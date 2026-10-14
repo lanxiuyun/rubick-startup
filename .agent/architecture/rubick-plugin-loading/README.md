@@ -71,6 +71,7 @@ openPlugin({data: t}, r){
 - 注册表里 `pluginType: 'ui'` 的项必须有 `features[].cmds`，否则搜不到（启动器搜索只看 `features` 在不在，不按类型过滤）。
 - `logo` **必须是 http/https 在线地址或 `data:` URI**，本地文件路径不显示图标（官方文档明说，实测确认）。
 - 项目目录可以放在任何地方，junction 会把两边连起来；改页面文件**不用重启 Rubick**（页面每次打开重新读），改 `name`/`main`/`features` 才需要重装。
+- 启动 UI 初始化时通过 `loadStore()` 一次读取 PouchDB 文档，同时取记录与独立标签。`onPluginReady` 仍刷新一次，以保留宿主 ready 时同步外部数据的语义；避免把记录和标签分别查库。
 
 ## 文档没说清的地方
 

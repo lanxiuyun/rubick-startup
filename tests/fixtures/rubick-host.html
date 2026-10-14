@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rubick Plugin E2E Host</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#202123;font-family:"Segoe UI","Microsoft YaHei",sans-serif;padding:30px 20px}
+.window{width:800px;height:570px;margin:0 auto;background:white;border:1px solid #aaa;border-radius:8px;overflow:hidden;box-shadow:0 12px 30px #0003;display:flex;flex-direction:column}
+.header{height:60px;flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff}
+.badge{display:flex;align-items:center;gap:8px;height:40px;padding:4px 8px;border-radius:10px;background:#f7f7f7;font-size:16px;color:#131820}
+.badge img{height:32px;width:32px;border-radius:50%}
+.search{flex:1;min-width:0;border:0;outline:0;background:transparent;font:16px "Segoe UI","Microsoft YaHei",sans-serif;color:#263543}
+.search::placeholder{color:#b8b8b8}
+.more{width:24px;height:36px;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.more i{width:3px;height:3px;border-radius:50%;background:#222}
+iframe{border:0;width:100%;flex:1;min-height:0;background:#fff}
+@media(max-width:850px){.window{width:100%}body{padding:20px}}
+</style>
+</head>
+<body>
+<main class="window">
+ <header class="header">
+  <div class="badge"><img id="logo" alt="启动收藏"><span>fav</span></div>
+  <input class="search" id="search" aria-label="Rubick 搜索框" placeholder="输入路径、程序名或命令，回车运行">
+  <button class="more" type="button" aria-label="Rubick 菜单"><i></i><i></i><i></i></button>
+ </header>
+ <iframe id="plugin" title="启动收藏插件"></iframe>
+</main>
+<script>
+(async()=>{
+ const search=document.getElementById('search');
+ const frame=document.getElementById('plugin');
+ const manifest=await fetch('../../package.json').then(r=>r.json());
+ document.getElementById('logo').src=manifest.logo;
+ window.hostRecords=window.e2eRecords||[
+  {id:'path',command:'D:\\Projects',kind:'path',time:Date.now(),groups:[]},
+  {id:'pad',command:'notepad',kind:'command',time:Date.now()-60000,groups:['123']}
+ ];
+ window.launched=[];
+ const adapter=()=>{
+  const host=parent;
+  const pluginExit=function(event,input){ /* __EscapeKeyDown */ if(input.type==='keyDown'&&input.key==='Escape')host.exited=true };
+  const pluginListeners=[pluginExit];
+  window.addEventListener('keydown',event=>{
+   const input={type:'keyDown',key:event.key|| (event.keyCode===27?'Escape':'' )};
+   for(const listener of pluginListeners.slice())listener(event,input);
+  },true);
+  window.rubick={
+   db:{get:()=>({_id:'rubick-startup/history-v2',records:host.hostRecords}),put:doc=>{host.hostRecords=doc.records}},
+   setSubInput:cb=>{host.subInput=cb},
+   setSubInputValue:value=>{host.document.getElementById('search').value=value;host.subInput({text:value})},
+   onPluginReady:()=>{},setExpendHeight:()=>{},hideMainWindow:()=>{host.hidden=true},outPlugin:()=>{host.exited=true}
+  };
+  window.require=name=>{
+   if(name==='@electron/remote')return {require:module=>module==='vm'?{runInThisContext:script=>eval('('+script+')')}:module==='fs'?{appendFileSync:()=>{}}:module==='path'?{join:(...parts)=>parts.join('/')}:module==='os'?{tmpdir:()=>'/tmp'}:null,getCurrentWebContents:()=>({
+    listeners:()=>pluginListeners.slice(),on:(type,listener)=>{if(type==='before-input-event')pluginListeners.push(listener)},
+    isDestroyed:()=>false,once:()=>{},removeListener:(type,listener)=>{const index=pluginListeners.indexOf(listener);if(index>=0)pluginListeners.splice(index,1)},sendInputEvent:input=>host.document.getElementById('plugin').contentDocument.activeElement.dispatchEvent(new KeyboardEvent(input.type==='keyUp'?'keyup':'keydown',{keyCode:27,bubbles:true,cancelable:true}))
+   }),getCurrentWindow:()=>({webContents:{
+    focus:()=>host.focus(),executeJavaScript:script=>Promise.resolve(host.eval(script)),
+    listeners:()=>host.beforeInputListeners.slice(),
+    listenerCount:()=>host.beforeInputListeners.length,
+    removeListener:(type,listener)=>{host.beforeInputListeners=host.beforeInputListeners.filter(item=>item!==listener)},
+    on:(type,listener)=>{host.beforeInputListeners.push(listener)}
+   }})};
+   if(name!=='child_process')throw new Error('Isolated E2E host');
+   return {spawnSync:()=>({status:0,stdout:'C:\\Tools\\notepad.exe'}),spawn:(exe,args)=>{
+    host.launched.push(args.at(-1));
+    const child={once:(type,cb)=>{if(type==='spawn')setTimeout(cb,0);if(type==='close')setTimeout(()=>cb(0,null),10);return child},stderr:{on:()=>{}},unref:()=>{}};
+    return child;
+   }};
+  };
+ };
+ const html=await fetch('../../public/index.html').then(r=>r.text());
+ frame.srcdoc=html.replace('<head>','<head><script>('+adapter.toString()+')();<\/script>');
+ search.addEventListener('input',()=>{if(window.subInput)window.subInput({text:search.value})});
+ window.escapeHandler=function(event,input){ /* __EscapeKeyDown */ if(input.key==='Escape')window.exited=true };
+ window.beforeInputListeners=[window.escapeHandler];
+ search.addEventListener('keydown',event=>{
+  for(const listener of window.beforeInputListeners.slice())listener(event,{type:'keyDown',key:event.key,control:event.ctrlKey,meta:event.metaKey,shift:event.shiftKey,alt:event.altKey});
+  if(event.defaultPrevented)return;
+  const codes={Enter:13,ArrowDown:40,ArrowUp:38};
+  if(!codes[event.key]||!window.subInput)return;
+  event.preventDefault();
+  const view=frame.contentWindow;
+  const key=new view.KeyboardEvent('keydown',{keyCode:codes[event.key],bubbles:true,cancelable:true});
+  view.document.activeElement.dispatchEvent(key);
+ });
+ search.addEventListener('keyup',event=>{
+  for(const listener of window.beforeInputListeners.slice())listener(event,{type:'keyUp',key:event.key,control:event.ctrlKey,meta:event.metaKey,shift:event.shiftKey,alt:event.altKey});
+ });
+})();
+</script>
+</body>
+</html>

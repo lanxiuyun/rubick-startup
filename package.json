@@ -2,9 +2,9 @@
   "name": "rubick-startup",
   "pluginName": "启动收藏",
   "description": "Windows 运行框式输入、执行、记录历史并支持收藏；关键词：运行、启动、start、fav",
-  "version": "0.5.0",
+  "version": "26.10.13",
   "main": "public/index.html",
-  "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIHN0b3AtY29sb3I9IiM4ZmJkNzIiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM0Nzc4M2QiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE4IiBmaWxsPSJub25lIiBzdHJva2U9IiNlNWU5ZTMiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xOCAzMi41IDMyIDIwbDE0IDEyLjV2MTdhMi41IDIuNSAwIDAgMS0yLjUgMi41aC0yM2EyLjUgMi41IDAgMCAxLTIuNS0yLjV6IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjZykiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0yNyA1MlYzOWE1IDUgMCAwIDEgMTAgMHYxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDc3ODNkIiBzdHJva2Utd2lkdGg9IjMuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGNpcmNsZSBjeD0iNDkiIGN5PSIxNiIgcj0iNSIgZmlsbD0iI2Q5YTg1YyIvPjwvc3ZnPg==",
+  "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA0OCA0OCc+PHJlY3Qgd2lkdGg9JzQ4JyBoZWlnaHQ9JzQ4JyByeD0nMTMnIGZpbGw9JyMyODY0ZjAnLz48cGF0aCBkPSdtMTggMTQgOSA4LTkgOCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZmZmJyBzdHJva2Utd2lkdGg9JzQnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPjxwYXRoIGQ9J00yMyAzNmgxMycgZmlsbD0nbm9uZScgc3Ryb2tlPScjZmZmJyBzdHJva2Utd2lkdGg9JzMuNScgc3Ryb2tlLWxpbmVjYXA9J3NxdWFyZScvPjwvc3ZnPg==",
   "pluginType": "ui",
   "features": [
     {
@@ -15,10 +15,29 @@
   ],
   "private": true,
   "scripts": {
-    "serve": "npx http-server public -p 4173 -c-1",
+    "serve": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "deps": "npm install",
+    "audit": "npm audit",
     "install:rubick": "node tools/install.js",
     "check:rubick": "node tools/install.js --check",
     "uninstall:rubick": "node tools/install.js --uninstall",
-    "test": "node tests/run-all.js"
+    "test": "npm run build && node tests/run-all.js",
+    "test:visual": "node tests/visual.e2e.js"
+  },
+  "dependencies": {
+    "rc-virtual-list": "^3.19.2",
+    "@ant-design/icons": "^5.6.1",
+    "antd": "^5.29.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "playwright": "^1.56.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
   }
 }
