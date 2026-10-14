@@ -3,7 +3,7 @@ import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Toolti
 import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import { RecordTagPanel } from './RecordTagPanel';
 import { groupCounts, groupsOf, guessKind, INPUT_ROW_ID, keyName, listRows, nextSelection, prune, ROW_H, visible } from './model.mjs';
-import { copy, focusHostInput, loadStore, log, now, rubick, save, spawnCommand, suspendHostEscape, type RecordItem } from './runtime';
+import { copy, focusHostInput, loadStore, log, logInputState, now, rubick, save, spawnCommand, suspendHostEscape, type RecordItem } from './runtime';
 
 type State = { records: RecordItem[]; query: string; group: string; selected: string | null; pinned: string[] };
 type Editor = { mode: 'create' | 'rename'; name: string };
@@ -27,6 +27,8 @@ export function StartupApp() {
   tagMenuOpen.current = tagMenu !== null;
   const [panel, setPanel] = useState<{ id: string; x: number; y: number; groups: string[] } | null>(null);
   const panelOpen = useRef(false);
+  const escapeHeld = useRef(false);
+  const [awaitEscapeRelease, setAwaitEscapeRelease] = useState(false);
   panelOpen.current = !!panel;
   const panelRecord = state.records.find(record => record.id === panel?.id);
   const [viewport, setViewport] = useState({ width: innerWidth, height: innerHeight });
@@ -118,11 +120,18 @@ export function StartupApp() {
       rubick?.onPluginReady(initialize);
     } catch (error) { void message.error(`接管搜索框失败：${(error as Error).message}`); }
     const onKey = (event: KeyboardEvent) => {
+      if (keyName(event) === 'escape' && escapeHeld.current) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        logInputState('input-escape-repeat-blocked', { repeat: event.repeat });
+        return;
+      }
       if (keyName(event) === 'escape' && (panelOpen.current || editing.current || tagMenuOpen.current)) {
+        logInputState('input-escape-plugin-received', { panel: panelOpen.current, editor: !!editing.current, tagMenu: tagMenuOpen.current, target: (event.target as HTMLElement)?.tagName });
         event.preventDefault();
         event.stopImmediatePropagation();
+        escapeHeld.current = true;
+        setAwaitEscapeRelease(true);
         setPanel(null); setEditor(null); setTagMenu(null);
-        focusHostInput();
         return;
       }
       if (panelOpen.current) {
@@ -141,24 +150,37 @@ export function StartupApp() {
       } else if (key === 'escape') { input(''); }
     };
     window.addEventListener('keydown', onKey, true);
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (keyName(event) !== 'escape' || !escapeHeld.current) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      logInputState('input-escape-released');
+      window.setTimeout(() => {
+        escapeHeld.current = false;
+        setAwaitEscapeRelease(false);
+      }, 0);
+    };
+    window.addEventListener('keyup', onKeyUp, true);
     const closeMenu = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.ant-dropdown,.filter-slot')) setTagMenu(null);
-      if (!target.closest('.record-tag-panel,.record-panel-anchor')) setPanel(null);
-      if (!editing.current && !target.closest('input,textarea,.ant-input-affix-wrapper,#tagAdd,.ant-dropdown')) focusHostInput();
+      if (!target.closest('.ant-dropdown,.filter-slot') && tagMenuOpen.current) { logInputState('input-menu-close', { menu: 'tag-filter', reason: 'outside-click' }); setTagMenu(null); }
+      if (!target.closest('.record-tag-panel,.record-panel-anchor') && panelOpen.current) { logInputState('input-menu-close', { menu: 'record-tags', reason: 'outside-click' }); setPanel(null); }
+      if (!editing.current && !target.closest('input,textarea,.ant-input-affix-wrapper,#tagAdd,.ant-dropdown,.record-tag-panel,.record-panel-anchor')) focusHostInput();
     };
     document.addEventListener('click', closeMenu, true);
     const retainFocus = (event: MouseEvent) => {
       if (!(event.target as HTMLElement).closest('input,textarea,.ant-input-affix-wrapper')) event.preventDefault();
     };
     document.addEventListener('mousedown', retainFocus);
-    return () => { window.removeEventListener('keydown', onKey, true); document.removeEventListener('click', closeMenu, true); document.removeEventListener('mousedown', retainFocus); };
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true); document.removeEventListener('click', closeMenu, true); document.removeEventListener('mousedown', retainFocus); };
   }, []);
 
   useLayoutEffect(() => {
-    if (panel || editor || tagMenu !== null) return suspendHostEscape();
+    if (panel || editor || tagMenu !== null || awaitEscapeRelease) {
+      logInputState('input-menu-open', { menu: panel ? 'record-tags' : editor ? 'tag-editor' : 'tag-filter', recordId: panel?.id });
+      return suspendHostEscape();
+    }
     focusHostInput();
-  }, [!!panel, !!editor, tagMenu !== null]);
+  }, [!!panel || !!editor || tagMenu !== null || awaitEscapeRelease]);
 
   useLayoutEffect(() => {
     const resize = () => setViewport({ width: innerWidth, height: innerHeight });
@@ -217,7 +239,7 @@ export function StartupApp() {
             const sameDay = date.toDateString() === today.toDateString();
             const time = sameDay ? `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` : `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             return <div key={record.id} className={`row${record.id === state.selected ? ' sel' : ''}`} data-id={record.id} style={{ top: (from + offset) * ROW_H, height: ROW_H }} onClick={() => launch(record.command)}
-                onContextMenu={event => { event.preventDefault(); if (record.id === INPUT_ROW_ID) return; update({ ...current.current, selected: record.id }); setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); focusHostInput(); }}>
+                onContextMenu={event => { event.preventDefault(); if (record.id === INPUT_ROW_ID) return; update({ ...current.current, selected: record.id }); setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); }}>
                 <span className={`ico ${kind}`}><Icon /></span><span className="cmd" title={record.command}>{record.command}</span>
                 <span className="chips" onClick={event => event.stopPropagation()}>
                   {tags.slice(0, 2).map(group => <Tag key={group} className={`chip${group === ERROR_GROUP ? ' error' : ''}`} closable onClose={event => { event.preventDefault(); event.stopPropagation(); editGroups(record, group, true); }}><span className="chip-name" title={group}>{group}</span></Tag>)}

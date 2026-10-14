@@ -55,5 +55,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 已修复右键目标高亮、菜单 Esc 取消和非文本操作后的主输入焦点恢复
-  next: 重开 fav 在真实 Rubick 验证右键菜单 Esc 不退出，空白取消后可直接打字和退格
+  phase: 双 webContents Esc 监听修复已真机验收，有菜单先关闭菜单，无菜单直接退出插件
+  next: 后续输入层修改保留双 webContents 监听恢复与菜单焦点回归测试

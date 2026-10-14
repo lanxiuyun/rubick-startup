@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Checkbox, Empty, Input, Tooltip } from 'antd';
-import { CopyOutlined, DeleteOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { CloseOutlined, CopyOutlined, DeleteOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { groupsOf, keyName } from './model.mjs';
 import type { RecordItem } from './runtime';
 import VirtualList from 'rc-virtual-list';
@@ -17,12 +17,14 @@ type Props = {
 
 export function RecordTagPanel({ record, groups, listHeight, onToggle, onCopy, onDelete, onClose }: Props) {
   const [query, setQuery] = useState('');
+  const searchRef = useRef<any>(null);
   const checked: string[] = groupsOf(record);
   const name = query.trim();
   const canCreate = !!name && !groups.includes(name);
   const filtered = groups.filter(group => group.toLocaleLowerCase().includes(name.toLocaleLowerCase()))
     .sort((a, b) => Number(checked.includes(b)) - Number(checked.includes(a)));
   const create = () => { if (canCreate) { onToggle(name, false); setQuery(''); } };
+  useEffect(() => { searchRef.current?.focus(); }, []);
   return <div className="record-tag-panel" onClick={event => event.stopPropagation()}
     onKeyDown={event => {
       const key = keyName(event);
@@ -32,8 +34,9 @@ export function RecordTagPanel({ record, groups, listHeight, onToggle, onCopy, o
     }}>
     <div className="panel-action"><Button type="text" block aria-label="复制命令" icon={<CopyOutlined />} onClick={onCopy}>复制命令</Button></div>
     <div className="panel-search">
-      <Input aria-label="搜索标签" placeholder="搜索标签" prefix={<SearchOutlined />} allowClear value={query} onChange={event => setQuery(event.target.value)} />
+      <Input ref={searchRef} aria-label="搜索标签" placeholder="搜索标签" prefix={<SearchOutlined />} allowClear value={query} onChange={event => setQuery(event.target.value)} />
       <Tooltip title="新建标签并加入"><Button aria-label="新建标签并加入" icon={<PlusOutlined />} disabled={!canCreate} onClick={create} /></Tooltip>
+      <Tooltip title="关闭菜单"><Button aria-label="关闭菜单" icon={<CloseOutlined />} onClick={onClose} /></Tooltip>
     </div>
     <div className="panel-tags">
       <VirtualList data={filtered} height={listHeight} itemHeight={36} itemKey={group => group} showScrollBar

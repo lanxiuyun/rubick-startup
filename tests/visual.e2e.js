@@ -85,6 +85,7 @@ async function main() {
   const boot = async () => { await page.goto(url); await page.locator('.row').first().waitFor(); };
   const key = async keyCode => {
     await page.evaluate(code => document.body.dispatchEvent(new KeyboardEvent('keydown', { keyCode: code, bubbles: true, cancelable: true })), keyCode);
+    await page.evaluate(code => document.body.dispatchEvent(new KeyboardEvent('keyup', { keyCode: code, bubbles: true, cancelable: true })), keyCode);
   };
   const search = async text => { await page.evaluate(value => window.search({ text: value }), text); };
   const menuClick = async text => { await page.getByRole('menuitem').filter({ hasText: new RegExp(`^${text}$`) }).click(); };
@@ -476,12 +477,23 @@ async function main() {
       assert.strictEqual(await plugin.locator('.row.sel').getAttribute('data-id'), 'path');
       await plugin.locator('.row[data-id="pad"]').click({ button: 'right' });
       assert.strictEqual(await plugin.locator('.row.sel').getAttribute('data-id'), 'pad', 'Context menu must highlight its target record');
-      await host.keyboard.type('note');
-      await host.locator('#search').press('Escape');
+      const tagSearch = plugin.getByRole('textbox', { name: '搜索标签' });
+      await tagSearch.waitFor();
+      assert(await tagSearch.evaluate(el => document.activeElement === el), 'Context menu must focus its tag search input');
+      await tagSearch.fill('123');
+      await host.keyboard.down('Escape');
       assert.strictEqual(await plugin.locator('.record-tag-panel').count(), 0);
       assert(!await host.evaluate(() => window.exited), 'Menu Escape must not exit the host plugin');
+      assert(!await host.locator('#search').evaluate(el => document.activeElement === el), 'Held Escape must not return focus to host');
+      await host.keyboard.down('Escape');
+      assert(!await host.evaluate(() => window.exited), 'Held Escape repeats must not exit the plugin');
+      await host.keyboard.up('Escape');
+      await host.waitForFunction(() => document.activeElement === document.querySelector('#search'));
       assert(await host.locator('#search').evaluate(el => document.activeElement === el));
-      assert.strictEqual(await host.locator('#search').inputValue(), 'note', 'Menu Escape must preserve the command text');
+      assert.strictEqual(await host.locator('#search').inputValue(), '', 'Menu Escape must preserve the command text');
+      await host.locator('#search').press('Escape');
+      assert(await host.evaluate(() => window.exited), 'Escape after menu close must retain the host exit behavior');
+      await host.evaluate(() => { window.exited = false; });
       await host.locator('#search').fill('');
       await plugin.locator('.row[data-id="pad"]').click({ button: 'right' });
       await plugin.getByRole('textbox', { name: '搜索标签' }).fill('123');
@@ -501,6 +513,7 @@ async function main() {
       assert.strictEqual(await plugin.locator('#tagInput').inputValue(), 'x', 'Explicit tag editor must retain text focus');
       await plugin.locator('#tagInput').press('Escape');
       assert(await host.locator('#search').evaluate(el => document.activeElement === el));
+      assert(await host.evaluate(() => window.beforeInputListeners.length === 1 && window.beforeInputListeners[0] === window.escapeHandler), 'Closing temporary UI must restore only the original host listener');
       await host.screenshot({ path: path.join(output, `rubick-host-${scale === 1 ? 900 : 1376}.png`) });
       await host.locator('#search').fill('notepad');
       await host.locator('#search').press('Enter');
