@@ -45,9 +45,9 @@ body{margin:0;overflow:hidden}
 .record-tag-panel{display:flex;flex-direction:column;width:min(280px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .panel-action{flex:none;padding:5px;border-bottom:1px solid #e7eaec}
 .panel-action .ant-btn{display:flex;align-items:center;justify-content:flex-start}
-.panel-search{display:flex;gap:6px;flex:none;padding:10px;border-bottom:1px solid #e7eaec}
+.panel-search{display:flex;gap:6px;flex:none;padding:10px 10px 4px}
 .panel-search .ant-input-affix-wrapper{min-width:0}
-.panel-tags{min-height:0;padding:6px}
+.panel-tags{min-height:0;padding:0 6px 6px}
 .panel-tags .rc-virtual-list-holder{scrollbar-width:none}
 .panel-tags .rc-virtual-list-holder::-webkit-scrollbar{display:none}
 .panel-tags .ant-checkbox-wrapper{display:flex;align-items:center;margin:0;padding:7px 8px;border-radius:4px;min-width:0}

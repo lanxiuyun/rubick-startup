@@ -297,6 +297,8 @@ async function main() {
 
     await page.locator('.tag[data-group=""]').click();
     await page.locator('.row[data-id="a"]').click({ button: 'right' });
+    assert.strictEqual(await page.locator('.panel-search').evaluate(el => getComputedStyle(el).borderBottomWidth), '0px');
+    assert.deepStrictEqual(await page.locator('.panel-footer .ant-btn').allTextContents(), ['复制命令', '删除这条记录']);
     await page.getByRole('button', { name: '复制命令', exact: true }).click();
     assert.strictEqual(await page.evaluate(() => window.copied[0]), 'ipconfig /all');
     await page.getByRole('textbox', { name: '搜索标签' }).fill('测试标签');
@@ -479,6 +481,7 @@ async function main() {
       assert.strictEqual(await plugin.locator('.row.sel').getAttribute('data-id'), 'pad', 'Context menu must highlight its target record');
       const tagSearch = plugin.getByRole('textbox', { name: '搜索标签' });
       await tagSearch.waitFor();
+      assert.strictEqual(await plugin.getByRole('button', { name: '关闭菜单', exact: true }).count(), 0);
       assert(await tagSearch.evaluate(el => document.activeElement === el), 'Context menu must focus its tag search input');
       await tagSearch.fill('123');
       await host.keyboard.down('Escape');
@@ -512,6 +515,7 @@ async function main() {
       await plugin.locator('#tagInput').press('x');
       assert.strictEqual(await plugin.locator('#tagInput').inputValue(), 'x', 'Explicit tag editor must retain text focus');
       await plugin.locator('#tagInput').press('Escape');
+      await host.waitForFunction(() => document.activeElement === document.querySelector('#search'));
       assert(await host.locator('#search').evaluate(el => document.activeElement === el));
       assert(await host.evaluate(() => window.beforeInputListeners.length === 1 && window.beforeInputListeners[0] === window.escapeHandler), 'Closing temporary UI must restore only the original host listener');
       await host.screenshot({ path: path.join(output, `rubick-host-${scale === 1 ? 900 : 1376}.png`) });

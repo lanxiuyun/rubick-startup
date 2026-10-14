@@ -23,10 +23,6 @@ export const rubick = window.rubick;
 export const now = () => window.__rubickStartupNow?.() ?? Date.now();
 let hostContents: any;
 let pauseEscape: (() => () => void) | undefined;
-let hostBridgeStage = 'load-remote';
-let hostBridgeError = '';
-let hostBridgeIds: { host?: number; plugin?: number } = {};
-const escapeCycle = { current: 0 };
 try {
   let remote: any;
   try { remote = window.require?.('@electron/remote'); }
@@ -34,29 +30,18 @@ try {
     const resources = window.require?.('process').resourcesPath;
     if (resources) remote = window.require?.(window.require?.('path').join(resources, 'app.asar', 'node_modules', '@electron', 'remote'));
   }
-  hostBridgeStage = 'get-host-window';
   hostContents = remote?.getCurrentWindow().webContents;
   if (hostContents) {
-    hostBridgeIds.host = hostContents.id;
-    hostBridgeStage = 'create-escape-handler';
-    const fs = remote.require('fs'), path = remote.require('path'), os = remote.require('os');
-    const suspend = remote.require('vm').runInThisContext(`(contents, pluginContents, fs, path, os) => {
-      const trace = (stage, data) => fs.appendFileSync(path.join(os.tmpdir(), 'rubick-startup.log'),
-        new Date().toISOString() + ' [input-escape-main] ' + JSON.stringify({ stage, host: contents.id, plugin: pluginContents.id, ...data }) + '\\n');
-      const allListeners = contents.listeners('before-input-event');
-      const listenerInfo = allListeners.map((listener, index) => ({ index, name: listener.name, source: listener.toString().slice(0, 500) }));
-      const listeners = allListeners.filter(listener => listener.toString().includes('__EscapeKeyDown'));
+    // Rubick installs its exit handler on both the host and plugin webContents.
+    const suspend = remote.require('vm').runInThisContext(`(contents, pluginContents) => {
+      const listeners = contents.listeners('before-input-event').filter(listener => listener.toString().includes('__EscapeKeyDown'));
       const pluginListeners = pluginContents.listeners('before-input-event').filter(listener => listener.toString().includes('__EscapeKeyDown'));
-      trace('menu-open', { total: allListeners.length, matched: listeners.length, pluginMatched: pluginListeners.length, listeners: listenerInfo });
       for (const listener of listeners) contents.removeListener('before-input-event', listener);
       for (const listener of pluginListeners) pluginContents.removeListener('before-input-event', listener);
       const forwardEscape = (event, input) => {
         if (!input || input.key !== 'Escape' || input.control || input.meta || input.shift || input.alt) return;
-        trace('escape-received', { input: { type: input.type, key: input.key, code: input.code, keyCode: input.keyCode, control: input.control, meta: input.meta, shift: input.shift, alt: input.alt }, defaultPrevented: event.defaultPrevented });
         event.preventDefault();
-        const destroyed = pluginContents.isDestroyed();
-        if (!destroyed) pluginContents.sendInputEvent({ type: input.type, keyCode: 'Escape' });
-        trace('escape-forwarded', { destroyed, defaultPrevented: event.defaultPrevented });
+        if (!pluginContents.isDestroyed()) pluginContents.sendInputEvent({ type: input.type, keyCode: 'Escape' });
       };
       contents.on('before-input-event', forwardEscape);
       let restored = false;
@@ -68,37 +53,27 @@ try {
         if (!pluginContents.isDestroyed()) {
           for (const listener of pluginListeners) pluginContents.on('before-input-event', listener);
         }
-        trace('menu-close', { remaining: contents.listenerCount('before-input-event'), restored: listeners.length, pluginRestored: !pluginContents.isDestroyed() ? pluginListeners.length : 0 });
         pluginContents.removeListener('destroyed', restore);
         return true;
       };
       pluginContents.once('destroyed', restore);
-      return { total: allListeners.length, listenerInfo, matched: listeners.length, restore };
+      return restore;
     }`);
-    hostBridgeStage = 'get-plugin-contents';
     const pluginContents = remote.getCurrentWebContents();
-    hostBridgeIds.plugin = pluginContents.id;
     pauseEscape = () => {
-      const result = suspend(hostContents, pluginContents, fs, path, os);
-      const cycle = ++escapeCycle.current;
-      log('input-escape-listeners', JSON.stringify({ cycle, total: result.total, matched: result.matched, listeners: result.listenerInfo, ...hostBridgeIds }));
-      return () => {
-        result.restore();
-        log('input-escape-restored', JSON.stringify({ cycle, ...hostBridgeIds }));
-      };
+      const restore = suspend(hostContents, pluginContents);
+      return () => { restore(); };
     };
-    hostBridgeStage = 'ready';
   }
-} catch (error) { hostBridgeError = String(error); }
+} catch (error) { console.warn('[rubick-startup] Host input bridge unavailable', error); }
 export function focusHostInput() {
   try {
     hostContents?.focus();
-    void hostContents?.executeJavaScript("(() => { const input = document.querySelector('.rubick-select input, input'); input?.focus(); return !!input && document.activeElement === input; })()").then((focused: boolean) => logInputState('input-focus-result', { focused }), (error: Error) => log('input-focus', String(error)));
+    void hostContents?.executeJavaScript("(() => { const input = document.querySelector('.rubick-select input, input'); input?.focus(); return !!input && document.activeElement === input; })()").catch((error: Error) => log('input-focus', String(error)));
   } catch (error) { log('input-focus', String(error)); }
 }
 export function suspendHostEscape() {
   // Rubick 4.3.8 exits in before-input-event, before the plugin can consume Escape.
-  log('input-escape-install', JSON.stringify({ time: new Date(now()).toISOString(), available: !!pauseEscape, stage: hostBridgeStage, error: hostBridgeError, ...hostBridgeIds }));
   try { return pauseEscape?.() ?? (() => {}); }
   catch (error) { log('input-escape', String(error)); return () => {}; }
 }
@@ -112,11 +87,7 @@ export function log(kind: string, text: string) {
   console.info('[rubick-startup]', kind, text);
   try { fs?.appendFileSync(logPath, `${new Date(now()).toISOString()} [${kind}] ${text}\n`); } catch (error) { console.warn('[rubick-startup] 文件日志写入失败', error); }
 }
-export function logInputState(kind: string, data: object = {}) {
-  log(kind, JSON.stringify({ time: new Date(now()).toISOString(), ...data }));
-}
-log('session', '打开 React 插件；双 webContents Esc 监听修复版本 2026-10-14.3');
-log('input-host-bridge', JSON.stringify({ stage: hostBridgeStage, error: hostBridgeError, ...hostBridgeIds }));
+log('session', '打开 React 插件');
 try {
   const process = window.require?.('process');
   log('environment', JSON.stringify({ pid: process?.pid, execPath: process?.execPath, cwd: process?.cwd(), versions: process?.versions, logPath }));

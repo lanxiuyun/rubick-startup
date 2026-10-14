@@ -72,17 +72,15 @@ React 状态使用同步 ref 镜像，保证 `setSubInputValue('')` 同步回放
 
 ## 主输入焦点与菜单取消
 
-2026-10-14 真机验收通过：有菜单时第一次 Esc 只关闭菜单，再按一次退出插件；没有菜单时 Esc 直接退出插件。最终有效修复是同时暂停主窗口和插件 BrowserView 两处退出监听。下文保留排查过程，其中“尚待真机验收”描述的是当时状态，以本段最终验收结果为准。
+2026-10-14 真机验收通过：有菜单时第一次 Esc 只关闭菜单，再按一次退出插件；没有菜单时 Esc 直接退出插件。临时诊断日志和菜单关闭按钮已清理，保留必要的错误日志与回归测试。
 
-2026-10-14.3：反查本机 app.asar 的 `openPlugin()` 确认 **主窗口与插件 BrowserView 各自注册 `__EscapeKeyDown`**。菜单焦点在插件搜索框时直接触发 BrowserView 的退出监听，主窗口拦截无效。`suspendHostEscape()` 必须同时移除两个 webContents 上匹配的监听，并在清理时分别恢复；销毁后不向已销毁的插件恢复监听。日志 `menu-open` 记录 `pluginMatched`，`menu-close` 记录 `pluginRestored`。测试宿主也必须模拟插件 webContents 的退出监听，且 fs.appendFileSync/listenerCount 不可缺失，否则桥初始化失败却让浅层 Esc 测试假通过。双监听修复尚待真机验收。
+Rubick `openPlugin()` 在**主窗口与插件 BrowserView 各自注册 `__EscapeKeyDown`**。菜单焦点在插件搜索框时直接触发 BrowserView 的退出监听，页面 `preventDefault()` 无法阻止主进程销毁插件。`suspendHostEscape()` 必须同时暂停两个 webContents 上的退出监听，并在清理时分别恢复；不能恢复到已销毁的插件。主窗口的临时监听转发 Esc 按下和松开，不能拦截其它快捷键。测试宿主必须模拟两处退出监听，否则会假通过。
 
-2026-10-14.2：菜单 Esc 按下关闭菜单后，`awaitEscapeRelease` 保持临时宿主监听和插件焦点，重复 Esc 被消费；收到 keyup 后下一轮才交还主输入焦点并恢复宿主监听。不能只用 keydown 测试关闭，要覆盖按住、重复和松开。插件 webContents 销毁时也恢复监听，restore 幂等且返回 true（remote 空返回值可能报错）。焦点 executeJavaScript 显式返回布尔结果，日志记 `input-focus-result`。菜单提供关闭按钮作为备用出口。上述时序风险已由回归测试覆盖，是否解释真机退出仍待实际日志验证。
+菜单 Esc 按下关闭菜单后，`awaitEscapeRelease` 保持临时监听和插件焦点，重复 Esc 被消费；收到 keyup 后下一轮才交还主输入焦点并恢复宿主监听。测试要覆盖按住、重复和松开。插件 webContents 销毁时也恢复监听，restore 幂等且返回 true；焦点 executeJavaScript 显式返回布尔结果，避免 remote 空返回值错误。
 
 非文本控件的鼠标操作后，通过 `runtime.ts` 的 `focusHostInput()` 恢复 Rubick 主窗口 webContents 和 `.rubick-select input` 的焦点；不要用普通按键拼接命令文本。右键记录打开菜单时，`RecordTagPanel` 自动聚焦“搜索标签”输入框；菜单内部点击不触发主输入框抢焦点。关闭菜单后回到 Rubick 主输入框。标签编辑器也允许主动获得焦点，退出编辑后回到主输入框。右键记录立即更新选中行，勾选标签不清除选中状态。
 
-Rubick 4.3.8 的主窗口 `before-input-event` 调用 `__EscapeKeyDown`，在页面收到 Esc 前就移除插件，因此页面 `preventDefault()` 不足以取消宿主退出。临时方案需在菜单或编辑器打开期间暂停这个宿主监听，并转发 Esc；关闭或组件清理时恢复监听。**此主进程监听桥尚未真机验证通过**：2026-10-14 日志先后确认 VM 注入源码有换行转义语法错误，以及修正后远程 VM 函数中没有 `require`、在记录监听前抛出 `ReferenceError`。修复方式是将 `fs/path/os` 通过 `remote.require` 显式传给主进程函数；真机仍须确认 `input-escape-main` 的监听摘要、事件转发和恢复记录，不要将自动化测试结果当作真机验收。
-
-**搜索框不转发 Esc。** 主进程键码映射表虽包含 Escape，但搜索框实际绑定仅转发方向键、Tab、Enter 和空格。测试宿主不能默认转发 Esc，否则会假通过。诊断日志写在 `%TEMP%\\rubick-startup.log`，相关事件以 `input-` 开头；真机需检查 `input-host-bridge` 的 stage、`input-escape-install` 的 available、`input-escape-main` 的监听摘要/事件，以及 `input-escape-restored`。注意：`remote.require('vm').runInThisContext()` 中不保证有 `require`，必须把主进程依赖显式传入；模板字符串内写入日志的换行也要双重转义。
+**搜索框不转发 Esc。** 主进程键码映射表虽包含 Escape，但搜索框实际绑定仅转发方向键、Tab、Enter 和空格。测试宿主不能默认转发 Esc。监听操作通过 `remote.require('vm').runInThisContext()` 在主进程执行；其中不保证有 `require`，不要添加依赖隐式全局模块的代码。
 
 `@electron/remote` 从插件目录直接加载可能失败，可通过 `process.resourcesPath/app.asar/node_modules/@electron/remote` 加载 Rubick 自带模块。此通道只用于焦点和临时 Esc 控制，不读取或改写宿主输入值。宿主仿真测试覆盖右键高亮、两种输入框的 Esc、空白取消后直接输入与退格。
 

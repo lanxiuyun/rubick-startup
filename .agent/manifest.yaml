@@ -55,5 +55,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 双 webContents Esc 监听修复已真机验收，有菜单先关闭菜单，无菜单直接退出插件
+  phase: 已清理临时 Esc 诊断代码与菜单关闭按钮，保留真机验证的双 webContents 监听逻辑
   next: 后续输入层修改保留双 webContents 监听恢复与菜单焦点回归测试

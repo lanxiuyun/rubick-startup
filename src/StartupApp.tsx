@@ -3,7 +3,7 @@ import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Toolti
 import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import { RecordTagPanel } from './RecordTagPanel';
 import { groupCounts, groupsOf, guessKind, INPUT_ROW_ID, keyName, listRows, nextSelection, prune, ROW_H, visible } from './model.mjs';
-import { copy, focusHostInput, loadStore, log, logInputState, now, rubick, save, spawnCommand, suspendHostEscape, type RecordItem } from './runtime';
+import { copy, focusHostInput, loadStore, log, now, rubick, save, spawnCommand, suspendHostEscape, type RecordItem } from './runtime';
 
 type State = { records: RecordItem[]; query: string; group: string; selected: string | null; pinned: string[] };
 type Editor = { mode: 'create' | 'rename'; name: string };
@@ -122,11 +122,9 @@ export function StartupApp() {
     const onKey = (event: KeyboardEvent) => {
       if (keyName(event) === 'escape' && escapeHeld.current) {
         event.preventDefault(); event.stopImmediatePropagation();
-        logInputState('input-escape-repeat-blocked', { repeat: event.repeat });
         return;
       }
       if (keyName(event) === 'escape' && (panelOpen.current || editing.current || tagMenuOpen.current)) {
-        logInputState('input-escape-plugin-received', { panel: panelOpen.current, editor: !!editing.current, tagMenu: tagMenuOpen.current, target: (event.target as HTMLElement)?.tagName });
         event.preventDefault();
         event.stopImmediatePropagation();
         escapeHeld.current = true;
@@ -153,7 +151,6 @@ export function StartupApp() {
     const onKeyUp = (event: KeyboardEvent) => {
       if (keyName(event) !== 'escape' || !escapeHeld.current) return;
       event.preventDefault(); event.stopImmediatePropagation();
-      logInputState('input-escape-released');
       window.setTimeout(() => {
         escapeHeld.current = false;
         setAwaitEscapeRelease(false);
@@ -162,8 +159,8 @@ export function StartupApp() {
     window.addEventListener('keyup', onKeyUp, true);
     const closeMenu = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.ant-dropdown,.filter-slot') && tagMenuOpen.current) { logInputState('input-menu-close', { menu: 'tag-filter', reason: 'outside-click' }); setTagMenu(null); }
-      if (!target.closest('.record-tag-panel,.record-panel-anchor') && panelOpen.current) { logInputState('input-menu-close', { menu: 'record-tags', reason: 'outside-click' }); setPanel(null); }
+      if (!target.closest('.ant-dropdown,.filter-slot')) setTagMenu(null);
+      if (!target.closest('.record-tag-panel,.record-panel-anchor')) setPanel(null);
       if (!editing.current && !target.closest('input,textarea,.ant-input-affix-wrapper,#tagAdd,.ant-dropdown,.record-tag-panel,.record-panel-anchor')) focusHostInput();
     };
     document.addEventListener('click', closeMenu, true);
@@ -176,7 +173,6 @@ export function StartupApp() {
 
   useLayoutEffect(() => {
     if (panel || editor || tagMenu !== null || awaitEscapeRelease) {
-      logInputState('input-menu-open', { menu: panel ? 'record-tags' : editor ? 'tag-editor' : 'tag-filter', recordId: panel?.id });
       return suspendHostEscape();
     }
     focusHostInput();
@@ -255,7 +251,7 @@ export function StartupApp() {
         onToggle={(group, remove) => editGroups(panelRecord, group, remove)}
         onCopy={() => { void copy(panelRecord.command).then(() => message.success('已复制命令'), () => message.error('复制失败')); }}
         onDelete={() => { commit(current.current.records.filter(record => record.id !== panel.id), { selected: null }); setPanel(null); }}
-        onClose={() => setPanel(null)} />}>
+        />}>
       <span className="record-panel-anchor" style={{ left: Math.max(12, Math.min(panel.x, viewport.width - 292)), top: Math.max(12, Math.min(panel.y, viewport.height - panelHeight - 12)) }} />
     </Popover>}
   </div>;
