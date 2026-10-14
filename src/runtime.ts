@@ -21,6 +21,36 @@ declare global {
 }
 export const rubick = window.rubick;
 export const now = () => window.__rubickStartupNow?.() ?? Date.now();
+let hostContents: any;
+let pauseEscape: (() => () => void) | undefined;
+try {
+  let remote: any;
+  try { remote = window.require?.('@electron/remote'); }
+  catch {
+    const resources = window.require?.('process').resourcesPath;
+    if (resources) remote = window.require?.(window.require?.('path').join(resources, 'app.asar', 'node_modules', '@electron', 'remote'));
+  }
+  hostContents = remote?.getCurrentWindow().webContents;
+  if (hostContents) {
+    const suspend = remote.require('vm').runInThisContext(`contents => {
+      const listeners = contents.listeners('before-input-event').filter(listener => listener.toString().includes('__EscapeKeyDown'));
+      for (const listener of listeners) contents.removeListener('before-input-event', listener);
+      return () => { for (const listener of listeners) contents.on('before-input-event', listener); };
+    }`);
+    pauseEscape = () => suspend(hostContents);
+  }
+} catch { /* Standalone browser preview has no host window. */ }
+export function focusHostInput() {
+  try {
+    hostContents?.focus();
+    void hostContents?.executeJavaScript("document.querySelector('.rubick-select input, input')?.focus()").catch(() => {});
+  } catch (error) { log('input-focus', String(error)); }
+}
+export function suspendHostEscape() {
+  // Rubick 4.3.8 exits in before-input-event, before the plugin can consume Escape.
+  try { return pauseEscape?.() ?? (() => {}); }
+  catch (error) { log('input-escape', String(error)); return () => {}; }
+}
 let fs: any, logPath = '';
 try {
   fs = window.require?.('fs');

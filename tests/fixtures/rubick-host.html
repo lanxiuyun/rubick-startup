@@ -48,6 +48,10 @@ iframe{border:0;width:100%;flex:1;min-height:0;background:#fff}
    onPluginReady:()=>{},setExpendHeight:()=>{},hideMainWindow:()=>{host.hidden=true},outPlugin:()=>{host.exited=true}
   };
   window.require=name=>{
+   if(name==='@electron/remote')return {require:()=>({runInThisContext:script=>eval('('+script+')')}),getCurrentWindow:()=>({webContents:{
+    focus:()=>host.focus(),executeJavaScript:script=>Promise.resolve(host.eval(script)),
+    listeners:()=>[host.escapeHandler],removeListener:()=>{host.escapeSuspended=true},on:()=>{host.escapeSuspended=false}
+   }})};
    if(name!=='child_process')throw new Error('Isolated E2E host');
    return {spawnSync:()=>({status:0,stdout:'C:\\Tools\\notepad.exe'}),spawn:(exe,args)=>{
     host.launched.push(args.at(-1));
@@ -59,9 +63,11 @@ iframe{border:0;width:100%;flex:1;min-height:0;background:#fff}
  const html=await fetch('../../public/index.html').then(r=>r.text());
  frame.srcdoc=html.replace('<head>','<head><script>('+adapter.toString()+')();<\/script>');
  search.addEventListener('input',()=>{if(window.subInput)window.subInput({text:search.value})});
+ window.escapeHandler=function(event,input){ /* __EscapeKeyDown */ };
  search.addEventListener('keydown',event=>{
   const codes={Enter:13,ArrowDown:40,ArrowUp:38,Escape:27};
   if(!codes[event.key]||!window.subInput)return;
+  if(event.key==='Escape'&&!window.escapeSuspended){window.exited=true;return}
   event.preventDefault();
   const view=frame.contentWindow;
   const key=new view.KeyboardEvent('keydown',{keyCode:codes[event.key],bubbles:true,cancelable:true});

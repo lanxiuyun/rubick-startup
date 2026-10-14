@@ -70,6 +70,14 @@ ur = { Backspace, Tab, Enter, Escape, Space, PageUp, PageDown, End, Home,
 
 React 状态使用同步 ref 镜像，保证 `setSubInputValue('')` 同步回放时不会读取陈旧输入。标签编辑器打开时 window 捕获监听让路给 Ant Design Input；编辑器自己的处理器也调用 `keyName`，支持 Rubick 合成键码。
 
+## 主输入焦点与菜单取消
+
+非文本控件的鼠标操作后，通过 `runtime.ts` 的 `focusHostInput()` 恢复 Rubick 主窗口 webContents 和 `.rubick-select input` 的焦点；不要用普通按键拼接命令文本。标签搜索框和标签编辑器允许主动获得焦点，退出编辑后回到主输入框。右键记录立即更新选中行，勾选标签不清除选中状态。
+
+Rubick 4.3.8 的主窗口 `before-input-event` 调用 `__EscapeKeyDown`，在页面收到 Esc 前就移除插件，因此页面 `preventDefault()` 不足以取消宿主退出。菜单或编辑器打开期间，`suspendHostEscape()` 只临时摘除这个宿主监听，关闭或组件清理时恢复；页面捕获 Esc 关闭临时界面，不清空命令文本。没有临时界面时保留宿主原有退出行为。
+
+`@electron/remote` 从插件目录直接加载可能失败，可通过 `process.resourcesPath/app.asar/node_modules/@electron/remote` 加载 Rubick 自带模块。此通道只用于焦点和临时 Esc 控制，不读取或改写宿主输入值。宿主仿真测试覆盖右键高亮、两种输入框的 Esc、空白取消后直接输入与退格。
+
 ## 相关
 
 - [命令执行成功退出插件-执行失败继续停留并显示错误的约定.md](命令执行成功退出插件-执行失败继续停留并显示错误的约定.md)

@@ -3,7 +3,7 @@ import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Toolti
 import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import { RecordTagPanel } from './RecordTagPanel';
 import { groupCounts, groupsOf, guessKind, INPUT_ROW_ID, keyName, listRows, nextSelection, prune, ROW_H, visible } from './model.mjs';
-import { copy, loadStore, log, now, rubick, save, spawnCommand, type RecordItem } from './runtime';
+import { copy, focusHostInput, loadStore, log, now, rubick, save, spawnCommand, suspendHostEscape, type RecordItem } from './runtime';
 
 type State = { records: RecordItem[]; query: string; group: string; selected: string | null; pinned: string[] };
 type Editor = { mode: 'create' | 'rename'; name: string };
@@ -23,6 +23,8 @@ export function StartupApp() {
   editing.current = editor;
   const [name, setName] = useState('');
   const [tagMenu, setTagMenu] = useState<string | null>(null);
+  const tagMenuOpen = useRef(false);
+  tagMenuOpen.current = tagMenu !== null;
   const [panel, setPanel] = useState<{ id: string; x: number; y: number; groups: string[] } | null>(null);
   const panelOpen = useRef(false);
   panelOpen.current = !!panel;
@@ -84,7 +86,7 @@ export function StartupApp() {
   function editGroups(record: RecordItem, group: string, remove = false) {
     const records = current.current.records.map(item => item.id === record.id
       ? { ...item, groups: remove ? groupsOf(item).filter((tag: string) => tag !== group) : [...new Set([...groupsOf(item), group])] } : item);
-    commit(records, { selected: null });
+    commit(records);
   }
   function submitEditor() {
     const value = name.trim();
@@ -116,8 +118,14 @@ export function StartupApp() {
       rubick?.onPluginReady(initialize);
     } catch (error) { void message.error(`接管搜索框失败：${(error as Error).message}`); }
     const onKey = (event: KeyboardEvent) => {
+      if (keyName(event) === 'escape' && (panelOpen.current || editing.current || tagMenuOpen.current)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setPanel(null); setEditor(null); setTagMenu(null);
+        focusHostInput();
+        return;
+      }
       if (panelOpen.current) {
-        if (keyName(event) === 'escape') { event.preventDefault(); setPanel(null); }
         return;
       }
       if (editing.current || (event.target as HTMLElement)?.closest?.('input,textarea,.ant-dropdown')) return;
@@ -137,10 +145,20 @@ export function StartupApp() {
       const target = event.target as HTMLElement;
       if (!target.closest('.ant-dropdown,.filter-slot')) setTagMenu(null);
       if (!target.closest('.record-tag-panel,.record-panel-anchor')) setPanel(null);
+      if (!editing.current && !target.closest('input,textarea,.ant-input-affix-wrapper,#tagAdd,.ant-dropdown')) focusHostInput();
     };
-    document.addEventListener('click', closeMenu);
-    return () => { window.removeEventListener('keydown', onKey, true); document.removeEventListener('click', closeMenu); };
+    document.addEventListener('click', closeMenu, true);
+    const retainFocus = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest('input,textarea,.ant-input-affix-wrapper')) event.preventDefault();
+    };
+    document.addEventListener('mousedown', retainFocus);
+    return () => { window.removeEventListener('keydown', onKey, true); document.removeEventListener('click', closeMenu, true); document.removeEventListener('mousedown', retainFocus); };
   }, []);
+
+  useLayoutEffect(() => {
+    if (panel || editor || tagMenu !== null) return suspendHostEscape();
+    focusHostInput();
+  }, [!!panel, !!editor, tagMenu !== null]);
 
   useLayoutEffect(() => {
     const resize = () => setViewport({ width: innerWidth, height: innerHeight });
@@ -199,7 +217,7 @@ export function StartupApp() {
             const sameDay = date.toDateString() === today.toDateString();
             const time = sameDay ? `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` : `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             return <div key={record.id} className={`row${record.id === state.selected ? ' sel' : ''}`} data-id={record.id} style={{ top: (from + offset) * ROW_H, height: ROW_H }} onClick={() => launch(record.command)}
-                onContextMenu={event => { event.preventDefault(); if (record.id === INPUT_ROW_ID) return; setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); }}>
+                onContextMenu={event => { event.preventDefault(); if (record.id === INPUT_ROW_ID) return; update({ ...current.current, selected: record.id }); setTagMenu(null); setPanel({ id: record.id, x: event.clientX, y: event.clientY, groups: counts.map(([group]) => group) }); focusHostInput(); }}>
                 <span className={`ico ${kind}`}><Icon /></span><span className="cmd" title={record.command}>{record.command}</span>
                 <span className="chips" onClick={event => event.stopPropagation()}>
                   {tags.slice(0, 2).map(group => <Tag key={group} className={`chip${group === ERROR_GROUP ? ' error' : ''}`} closable onClose={event => { event.preventDefault(); event.stopPropagation(); editGroups(record, group, true); }}><span className="chip-name" title={group}>{group}</span></Tag>)}

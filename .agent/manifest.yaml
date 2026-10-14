@@ -55,5 +55,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 输入非空时新增临时原文首行并默认选中；下方保留历史建议
-  next: 重开 fav 验证 note 回车执行原文，方向键可选 notepad 历史建议
+  phase: 已修复右键目标高亮、菜单 Esc 取消和非文本操作后的主输入焦点恢复
+  next: 重开 fav 在真实 Rubick 验证右键菜单 Esc 不退出，空白取消后可直接打字和退格
