@@ -23,7 +23,8 @@
     "check:rubick": "node tools/install.js --check",
     "uninstall:rubick": "node tools/install.js --uninstall",
     "test": "npm run build && node tests/run-all.js",
-    "test:visual": "node tests/visual.e2e.js"
+    "test:visual": "node tests/visual.e2e.js",
+    "screenshot:readme": "npm run build && node tools/readme-screenshot.js"
   },
   "dependencies": {
     "rc-virtual-list": "^3.19.2",
