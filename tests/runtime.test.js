@@ -37,6 +37,20 @@ async function main() {
   await exports.spawnCommand('exit /b 9');
   await exports.spawnCommand(`"${process.execPath}" missing-script.js`);
   assert(launches.every(item => item.args.includes('/k') && item.options.windowsHide === false));
+  for (const command of ['wt', 'wt.exe']) {
+    const terminalExports = {};
+    vm.runInNewContext(code, {
+      exports: terminalExports, require: () => model,
+      window: { require: name => name === 'child_process' ? {
+        spawnSync: () => ({ status: 0 }),
+        spawn: hostRequire('child_process').spawn
+      } : hostRequire(name) },
+      console: { info: () => {}, warn: () => {} }, setTimeout, Uint8Array, TextDecoder
+    });
+    await terminalExports.spawnCommand(command);
+    assert.strictEqual(launches.at(-1).exe, 'wt.exe', 'Bare Windows Terminal must launch directly without a competing cmd window');
+    assert.strictEqual(launches.at(-1).args.length, 0, 'Direct launch must preserve Terminal window preferences');
+  }
   console.log('PASS real Windows PATH lookup, quoted executable, arguments, builtins and launch-only success');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

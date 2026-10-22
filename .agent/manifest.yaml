@@ -55,5 +55,5 @@ devlog:
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 已清理临时 Esc 诊断代码与菜单关闭按钮，保留真机验证的双 webContents 监听逻辑
-  next: 后续输入层修改保留双 webContents 监听恢复与菜单焦点回归测试
+  phase: 裸 wt 与 wt.exe 直接启动修复已真机验收，Terminal 正常前台激活并获得焦点
+  next: 后续启动逻辑修改保留 wt 直启与带参数命令走 CMD 的回归测试

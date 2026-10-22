@@ -25,7 +25,7 @@ function adapter(seed) {
   window.dbReads = 0;
   window.openedPaths = [];
   window.directories = ['Z:\\示例项目\\底部检测\\1-训练集', 'D:\\Projects\\ClientApp', 'C:\\example\\path', '\\\\server\\share\\folder'];
-  window.whereMatches = ['python', 'ipython', 'wecom-cli', 'dsh', 'ipconfig', 'notepad', 'new-command'];
+  window.whereMatches = ['wt', 'wt.exe', 'python', 'ipython', 'wecom-cli', 'dsh', 'ipconfig', 'notepad', 'new-command'];
   window.copied = [];
   window.clock = Date.now();
   window.__rubickStartupNow = () => window.clock;
@@ -147,7 +147,16 @@ async function main() {
     assert.strictEqual(await page.evaluate(() => window.launched.length), 0, 'Enter on raw input must not launch a fuzzy history match');
     assert.strictEqual(await page.evaluate(() => window.saved.some(record => record.command === 'note')), false);
 
-    for (const command of ['python', 'ipython', 'wecom-cli', 'dsh', 'python missing.py', 'dsh --profile missing', 'echo hello']) {
+    for (const command of ['wt', 'wt.exe']) {
+      await boot();
+      await search(command);
+      await key(13);
+      await page.waitForFunction(() => window.exited === 1);
+      assert.strictEqual(await page.evaluate(() => window.launched[0].exe), 'wt.exe');
+      assert.deepStrictEqual(await page.evaluate(() => window.launched[0].args), []);
+      assert.deepStrictEqual(await page.evaluate(() => window.windowActions), ['hide', 'exit']);
+    }
+    for (const command of ['python', 'ipython', 'wecom-cli', 'dsh', 'python missing.py', 'dsh --profile missing', 'echo hello', 'wt -w 0', 'wt & echo done']) {
       await boot();
       await page.evaluate(() => { window.exitCode = 2; });
       await search(command);

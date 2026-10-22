@@ -173,12 +173,14 @@ export function spawnCommand(command: string): Promise<void> {
           }
           if (!found) throw new Error(`命令不存在或不可访问：${executable}`);
         }
-        const args = ['/d', '/s', '/u', '/k', command];
-        trace('interactive-command-request', { args });
-        const child = childProcess.spawn('cmd.exe', args, { detached: true, windowsHide: false, stdio: 'ignore' });
+        const terminal = /^wt(?:\.exe)?$/i.test(command.trim());
+        const executableName = terminal ? 'wt.exe' : 'cmd.exe';
+        const args = terminal ? [] : ['/d', '/s', '/u', '/k', command];
+        trace(terminal ? 'terminal-request' : 'interactive-command-request', { executable: executableName, args });
+        const child = childProcess.spawn(executableName, args, { detached: true, windowsHide: false, stdio: 'ignore' });
         child.once('error', (error: Error) => finish(error));
         child.once('spawn', () => {
-          trace('interactive-command-spawn', { pid: child.pid });
+          trace(terminal ? 'terminal-spawn' : 'interactive-command-spawn', { pid: child.pid });
           child.unref();
           finish();
         });
