@@ -16,6 +16,8 @@ for (const id of ['tags', 'list', 'spacer', 'tagAdd']) assert(app.includes(`id="
 assert(/\.list\{[^}]*overflow-y:auto/.test(css), 'List must scroll');
 assert(model.includes('ROW_H = 56') && app.includes('height: ROW_H'), 'Rows must have constant height');
 assert(app.includes('tags.slice(0, 2)') && app.includes('tags.length - 2'), 'Tags must collapse');
+assert(app.includes('id="tagOverview"') && app.includes('className="tag-grid"'), 'Tag overview popover missing');
+assert(/\.tags\{[^}]*overflow-x:auto/.test(css) && css.includes('.tags:hover') && css.includes('.tag-grid'), 'Tag strip must scroll horizontally with a hover scrollbar and a grid overview');
 assert(app.includes('setSubInput(') && app.includes("addEventListener('keydown'"), 'Host input channels missing');
 assert(app.includes("setSubInputValue('')"), 'Execution must clear host input');
 assert(runtime.includes("'child_process'") && runtime.includes('windowsHide: true'), 'Execution contract missing');

@@ -40,6 +40,16 @@
 
 **绿色测试不等于设计验收。** 改 UI 后必须亲自看完整窗口和交互态截图，不能只看插件局部。仿真宿主也不能替代真机 IPC 验证或用户对最终效果的确认。
 
+## 标签条溢出验收
+
+- 顶栏保持 53px 单行；标签条 `overflow-x:auto`，悬停时下缘出现横向滚动条，**外观与列表右侧滚动条完全一致**（`scrollbar-width:thin` + `scrollbar-color`，滑块 `#c5cdd3`、透明轨道、细圆角；旧版 Electron 走 `::-webkit-scrollbar` 8px + 2px 透明边内缩），不悬停时不显示。
+- 标签溢出时 `#tagAdd` 与 `#tagOverview` 都必须完整落在视口内，且 `#tagAdd` 仍能打开新建输入框。
+- 纵向滚轮在标签条上直接横向滚动。
+- 「全部标签」浮层：两列 grid，含「全部」与所有标签的名称 + 数量，最高 220px、超出滚动；点击标签直接筛选并关闭；`Escape`、点外部、开始打字都会关闭；浮层打开时 `Enter` 只关闭浮层，不执行命令；右键标签仍是重命名/删除。
+- 空间足够时（1200px 宽、默认 8 个标签）标签条不溢出、不需要滚动。
+- 人工验收截图：`.visual-qa/tags-overflow-800.png`、`.visual-qa/tags-overflow-end-800.png`、`.visual-qa/tags-overview-800.png`、`.visual-qa/tags-overview-375.png`。
+- 注意：整页截图会把浮层与列表按压层错序合成（截图工具现象；`elementFromPoint` 和裁剪截图都显示浮层在最上方），看浮层外观用裁剪截图。
+
 ## Ant Design 组件边界
 
 标签列表使用 Ant Design 配套的 `rc-virtual-list`（36px 固定标签项、6px 自绘滚动条），不使用系统原生滚动条。浮窗锚点按插件 `innerWidth/innerHeight` 与预留面板高度约束在 12px 内边距内，不依赖 Popover 自动翻转；窗口 resize 时同步更新位置和列表高度。底部/右侧打开的完整可见性有浏览器断言。

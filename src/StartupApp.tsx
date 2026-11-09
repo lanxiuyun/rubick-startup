@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { App, Badge, Button, Dropdown, Empty, Input, Popover, Space, Tag, Tooltip } from 'antd';
-import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, CodeOutlined, DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { RecordTagPanel } from './RecordTagPanel';
 import { groupCounts, groupsOf, guessKind, INPUT_ROW_ID, keyName, listRows, nextSelection, prune, ROW_H, visible } from './model.mjs';
 import { copy, focusHostInput, loadStore, log, now, rubick, save, spawnCommand, suspendHostEscape, type RecordItem } from './runtime';
@@ -22,7 +22,7 @@ export function StartupApp() {
   const editing = useRef(editor);
   editing.current = editor;
   const [name, setName] = useState('');
-  const [tagMenu, setTagMenu] = useState<string | null>(null);
+  const [tagMenu, setTagMenu] = useState<{ group: string; from: 'strip' | 'grid' } | null>(null);
   const tagMenuOpen = useRef(false);
   tagMenuOpen.current = tagMenu !== null;
   const [panel, setPanel] = useState<{ id: string; x: number; y: number; groups: string[] } | null>(null);
@@ -34,6 +34,10 @@ export function StartupApp() {
   const [viewport, setViewport] = useState({ width: innerWidth, height: innerHeight });
   const panelListHeight = Math.max(36, Math.min(200, viewport.height - 180));
   const panelHeight = panelListHeight + 150;
+  const tagsRef = useRef<HTMLDivElement>(null);
+  const [tagOverview, setTagOverview] = useState(false);
+  const overviewOpen = useRef(false);
+  overviewOpen.current = tagOverview;
   const listRef = useRef<HTMLDivElement>(null);
   const [scroll, setScroll] = useState(0);
   const [height, setHeight] = useState(450);
@@ -54,6 +58,8 @@ export function StartupApp() {
   function input(text: string) {
     const snapshot = current.current;
     update({ ...snapshot, query: text, selected: listRows(snapshot.records, text, snapshot.group)[0]?.id ?? null });
+    // 打字就把「全部标签」浮层收起来，避免浮层挡住列表又拦不住回车。
+    setTagOverview(false);
     clearScroll();
   }
   function launch(raw: string) {
@@ -84,7 +90,7 @@ export function StartupApp() {
       void message.error(`启动失败：${error.message}`, 0);
     });
   }
-  function openEditor(value: Editor) { setName(value.name); setEditor(value); }
+  function openEditor(value: Editor) { setName(value.name); setEditor(value); setTagOverview(false); }
   function editGroups(record: RecordItem, group: string, remove = false) {
     const records = current.current.records.map(item => item.id === record.id
       ? { ...item, groups: remove ? groupsOf(item).filter((tag: string) => tag !== group) : [...new Set([...groupsOf(item), group])] } : item);
@@ -124,15 +130,19 @@ export function StartupApp() {
         event.preventDefault(); event.stopImmediatePropagation();
         return;
       }
-      if (keyName(event) === 'escape' && (panelOpen.current || editing.current || tagMenuOpen.current)) {
+      if (keyName(event) === 'escape' && (panelOpen.current || editing.current || tagMenuOpen.current || overviewOpen.current)) {
         event.preventDefault();
         event.stopImmediatePropagation();
         escapeHeld.current = true;
         setAwaitEscapeRelease(true);
-        setPanel(null); setEditor(null); setTagMenu(null);
+        setPanel(null); setEditor(null); setTagMenu(null); setTagOverview(false);
         return;
       }
       if (panelOpen.current) {
+        return;
+      }
+      if (overviewOpen.current) {
+        if (keyName(event) === 'enter') { event.preventDefault(); setTagOverview(false); }
         return;
       }
       if (editing.current || (event.target as HTMLElement)?.closest?.('input,textarea,.ant-dropdown')) return;
@@ -172,11 +182,11 @@ export function StartupApp() {
   }, []);
 
   useLayoutEffect(() => {
-    if (panel || editor || tagMenu !== null || awaitEscapeRelease) {
+    if (panel || editor || tagMenu !== null || tagOverview || awaitEscapeRelease) {
       return suspendHostEscape();
     }
     focusHostInput();
-  }, [!!panel || !!editor || tagMenu !== null || awaitEscapeRelease]);
+  }, [!!panel || !!editor || tagMenu !== null || tagOverview || awaitEscapeRelease]);
 
   useLayoutEffect(() => {
     const resize = () => setViewport({ width: innerWidth, height: innerHeight });
@@ -197,6 +207,15 @@ export function StartupApp() {
     else if (top + ROW_H > element.scrollTop + element.clientHeight) element.scrollTop = top + ROW_H - element.clientHeight;
     setScroll(element.scrollTop);
   }, [state.selected, selectedIndex]);
+  // 选中/新建的标签即使被滚出可视区也要回到视野里，否则用户看不到当前筛选状态。
+  useLayoutEffect(() => {
+    const element = tagsRef.current, active = element?.querySelector<HTMLElement>('.tag.on');
+    if (!element || !active) return;
+    const strip = element.getBoundingClientRect(), tag = active.getBoundingClientRect();
+    const start = tag.left - strip.left + element.scrollLeft, end = start + tag.width;
+    if (start < element.scrollLeft) element.scrollLeft = start;
+    else if (end > element.scrollLeft + element.clientWidth) element.scrollLeft = end - element.clientWidth;
+  }, [state.group, counts.length]);
 
   const from = Math.max(0, Math.floor(scroll / ROW_H) - 2);
   const to = Math.min(rows.length, Math.ceil((scroll + height) / ROW_H) + 2);
@@ -207,23 +226,45 @@ export function StartupApp() {
   };
   const filterTag = (group: string, count: number) => <Tag className={`tag ${state.group === group ? 'on' : ''}`} data-group={group}
     onClick={() => filter(group)} role="button" tabIndex={0} onKeyDown={event => { if (keyName(event) === 'enter') { event.stopPropagation(); filter(group); } }}>
-    {group || '全部'}<Badge className="n" count={count} showZero overflowCount={99999} /></Tag>;
+    <span className="tag-name">{group || '全部'}</span><Badge className="n" count={count} showZero overflowCount={99999} /></Tag>;
+  // 顶栏标签条和「全部标签」浮层共用同一个可点标签，右键菜单也一致；from 区分是哪一处打开了菜单，避免两边同时弹。
+  const tagFilter = (group: string, count: number, from: 'strip' | 'grid') => <Dropdown key={group} trigger={['contextMenu']}
+    open={tagMenu?.from === from && tagMenu.group === group} onOpenChange={open => { if (open) setTagMenu({ group, from }); }} menu={{ items: [
+      { key: 'rename', icon: <EditOutlined />, label: '重命名标签' }, { key: 'delete', icon: <DeleteOutlined />, danger: true, label: '删除标签' }
+    ], onClick: ({ key }) => { setTagMenu(null); if (key === 'rename') openEditor({ mode: 'rename', name: group }); else removeTag(group); } }}>
+    <span className="filter-slot" onContextMenu={event => { event.preventDefault(); setTagMenu({ group, from }); }}>{filterTag(group, count)}</span></Dropdown>;
+  const everyTag: [string, number][] = [['', state.records.length], ...counts];
 
   return <div className="app">
-    <div className="bar"><div className="tags" id="tags">
-      {editor ? <Space.Compact className="tag-editor">
-        <Input id="tagInput" autoFocus value={name} onChange={event => setName(event.target.value)} placeholder={editor.mode === 'rename' ? '新名字' : '标签名称'}
-          onKeyDown={event => { const key = keyName(event); if (key === 'enter') { event.preventDefault(); submitEditor(); } else if (key === 'escape') setEditor(null); event.stopPropagation(); }} />
-        <Tooltip title="确认"><Button id="tagConfirm" aria-label="确认" icon={<CheckOutlined />} onClick={submitEditor} /></Tooltip>
-        <Tooltip title="取消"><Button id="tagCancel" aria-label="取消" icon={<CloseOutlined />} onClick={() => setEditor(null)} /></Tooltip>
-      </Space.Compact> : <>
-        {filterTag('', state.records.length)}
-        {counts.map(([group, count]) => <Dropdown key={group} trigger={['contextMenu']} open={tagMenu === group} onOpenChange={open => { if (open) setTagMenu(group); }} menu={{ items: [
-          { key: 'rename', icon: <EditOutlined />, label: '重命名标签' }, { key: 'delete', icon: <DeleteOutlined />, danger: true, label: '删除标签' }
-        ], onClick: ({ key }) => { setTagMenu(null); if (key === 'rename') openEditor({ mode: 'rename', name: group }); else removeTag(group); } }}><span className="filter-slot" onContextMenu={event => { event.preventDefault(); setTagMenu(group); }}>{filterTag(group, count)}</span></Dropdown>)}
+    <div className="bar">
+      <div className="tags" id="tags" ref={tagsRef} onWheel={event => {
+        const element = tagsRef.current;
+        if (!element || element.scrollWidth <= element.clientWidth + 1) return;
+        if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+        element.scrollLeft += event.deltaY;
+      }}>
+        {editor ? <Space.Compact className="tag-editor">
+          <Input id="tagInput" autoFocus value={name} onChange={event => setName(event.target.value)} placeholder={editor.mode === 'rename' ? '新名字' : '标签名称'}
+            onKeyDown={event => { const key = keyName(event); if (key === 'enter') { event.preventDefault(); submitEditor(); } else if (key === 'escape') setEditor(null); event.stopPropagation(); }} />
+          <Tooltip title="确认"><Button id="tagConfirm" aria-label="确认" icon={<CheckOutlined />} onClick={submitEditor} /></Tooltip>
+          <Tooltip title="取消"><Button id="tagCancel" aria-label="取消" icon={<CloseOutlined />} onClick={() => setEditor(null)} /></Tooltip>
+        </Space.Compact> : <>
+          {filterTag('', state.records.length)}
+          {counts.map(([group, count]) => tagFilter(group, count, 'strip'))}
+        </>}
+      </div>
+      {!editor && <div className="bar-actions">
+        <Popover open={tagOverview} onOpenChange={setTagOverview} trigger={['click']} placement="bottomRight" arrow={false} destroyOnHidden
+          overlayClassName="tag-overview-popover" content={<div className="tag-overview">
+            <div className="tag-grid">
+              {everyTag.map(([group, count]) => <span key={group || '__all'} className="tag-cell" onClick={() => setTagOverview(false)}>{tagFilter(group, count, 'grid')}</span>)}
+            </div>
+          </div>}>
+          <Button id="tagOverview" type="text" title="全部标签" aria-label="全部标签" icon={<AppstoreOutlined />} />
+        </Popover>
         <Tooltip title="新建标签"><Button id="tagAdd" type="text" aria-label="新建标签" icon={<PlusOutlined />} onClick={() => openEditor({ mode: 'create', name: '' })} /></Tooltip>
-      </>}
-    </div></div>
+      </div>}
+    </div>
     <div className="list" id="list" ref={listRef} onScroll={event => setScroll(event.currentTarget.scrollTop)}>
       {!rows.length ? <Empty className="empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description={state.records.length ? '没有匹配的记录' : '还没有记录'} />
         : <div className="spacer" id="spacer" style={{ height: rows.length * ROW_H }}>

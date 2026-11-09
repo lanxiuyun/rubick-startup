@@ -49,11 +49,12 @@ bugs:
   - .agent/bugs/2026-10-11-bridge-installed-but-reported-as-missing.md
   - .agent/bugs/2026-10-11-plugin-shows-no-name-description-keywords-or-icon.md
   - .agent/bugs/2026-10-11-registry-is-read-once-at-startup-so-installing-needs-a-restart.md
+  - .agent/bugs/2026-11-09-标签太多时顶栏被截断且新建标签按钮不可达.md
 
 devlog:
   - .agent/devlog/2026-10-11-from-winr-replacement-to-string-manager.md
 
 current:
   plan: 无正式计划文件；进度看最新 devlog
-  phase: 裸 wt 与 wt.exe 直接启动修复已真机验收，Terminal 正常前台激活并获得焦点
-  next: 后续启动逻辑修改保留 wt 直启与带参数命令走 CMD 的回归测试
+  phase: 顶栏标签溢出改为单行横滚（悬停出滚动条）+ 右侧「全部标签」浮层 grid 列出全部标签，浏览器回归已覆盖
+  next: 真机 Rubick 里确认悬停滚动条与「全部标签」浮层的实际观感，以及浮层在窄窗口下的位置

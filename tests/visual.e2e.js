@@ -329,13 +329,21 @@ async function main() {
     assert(!await page.evaluate(() => window.saved.find(record => record.id === 'a').groups.includes('IP查询')));
     assert.strictEqual(await page.locator('.tag[data-group="IP查询"] .n').innerText(), '0', 'Removing last association must retain the tag');
     await page.locator('.row[data-id="f"]').click({ button: 'right' });
-    await page.getByRole('checkbox', { name: '开发', exact: true }).check();
-    assert(await page.evaluate(() => window.saved.find(record => record.id === 'f').groups.includes('开发')));
+    // 面板会把已关联标签排到最前并重排虚拟列表，直接按位置点会点到移动中的行；用面板搜索把目标行过滤成唯一行再点。
+    const panelTag = async name => {
+      await page.getByRole('textbox', { name: '搜索标签' }).fill(name);
+      const row = page.locator('.panel-tags .ant-checkbox-wrapper').filter({ has: page.locator(`span[title="${name}"]`) });
+      await row.waitFor();
+      await row.click();
+    };
+    await panelTag('开发');
+    await page.waitForFunction(() => window.saved.find(record => record.id === 'f').groups.includes('开发'));
     assert.strictEqual(await page.locator('.record-tag-panel').count(), 1);
-    await page.getByRole('checkbox', { name: '办公', exact: true }).check();
-    assert(await page.evaluate(() => window.saved.find(record => record.id === 'f').groups.includes('办公')));
+    await panelTag('办公');
+    await page.waitForFunction(() => window.saved.find(record => record.id === 'f').groups.includes('办公'));
     await page.screenshot({ path: path.join(output, 'record-tag-panel.png'), animations: 'disabled' });
-    await page.getByRole('checkbox', { name: '开发', exact: true }).uncheck();
+    await panelTag('开发');
+    await page.waitForFunction(() => !window.saved.find(record => record.id === 'f').groups.includes('开发'));
     assert(!await page.evaluate(() => window.saved.find(record => record.id === 'f').groups.includes('开发')));
     await page.getByRole('textbox', { name: '搜索标签' }).fill('办公');
     assert.strictEqual(await page.getByRole('checkbox').count(), 1);
@@ -422,7 +430,9 @@ async function main() {
     for (const width of [1200, 800, 560, 375]) {
       await boot();
       await page.setViewportSize({ width, height: 570 });
+      await page.waitForTimeout(300);
       await page.screenshot({ path: path.join(output, `list-${width}.png`) });
+      if (width === 1200) assert(await page.evaluate(() => { const tags = document.getElementById('tags'); return tags.scrollWidth <= tags.clientWidth + 1; }), 'Window wide enough for every tag must not need tag scrolling');
       const layout = await page.locator('.row').evaluateAll(elements => elements.map(row => {
         const boxes = ['.ico', '.cmd', '.chips', '.time'].map(selector => row.querySelector(selector).getBoundingClientRect());
         return { height: row.getBoundingClientRect().height, commandWidth: boxes[1].width, overlaps: boxes.some((box, i) => i && box.left < boxes[i - 1].right - 1) };
@@ -452,8 +462,114 @@ async function main() {
       await page.screenshot({ path: path.join(output, `editor-${width}.png`) });
       await page.locator('#tagInput').press('Escape');
       assert.strictEqual(await page.locator('#tagInput').count(), 0);
+      if (width === 375) {
+        await page.locator('#tagOverview').click();
+        await page.locator('.tag-grid').waitFor();
+        assert(await page.locator('.tag-overview').evaluate(el => {
+          const box = el.getBoundingClientRect();
+          return box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight;
+        }), 'Tag overview must stay inside narrow windows');
+        await page.screenshot({ path: path.join(output, 'tags-overview-375.png'), animations: 'disabled' });
+        await key(27);
+        await page.waitForTimeout(300);
+        assert.strictEqual(await page.locator('.tag-grid').count(), 0, 'Escape must close the tag overview');
+      }
       console.log(`PASS ${width}px: fixed rows, no overlaps, tags, editor and screenshot`);
     }
+    // 顶栏标签溢出：单行横滚（悬停出滚动条）+ 右侧「全部标签」浮层用 grid 列出全部标签
+    await page.setViewportSize({ width: 800, height: 570 });
+    const manyTags = ['workspace', '本地安全策略', '气球', '数据集', '网盘项目', 'nodejs', 'skills', 'nc', 'C261109', 'DET', '训练集', '原图', 'AOI', '元件检测'];
+    await page.evaluate(groups => {
+      window.saved = Array.from({ length: groups.length }, (_, i) => ({ id: `overflow-${i}`, command: `cluster-${i}`, time: Date.now() - i * 1000, kind: 'command', groups: [groups[i]] }));
+      window.savedGroups = [];
+      window.ready();
+    }, manyTags);
+    const strip = () => page.evaluate(() => {
+      const tags = document.getElementById('tags');
+      const add = document.getElementById('tagAdd').getBoundingClientRect();
+      const overview = document.getElementById('tagOverview').getBoundingClientRect();
+      return {
+        count: document.querySelectorAll('#tags .tag').length,
+        scrollLeft: tags.scrollLeft, scrollWidth: tags.scrollWidth, clientWidth: tags.clientWidth,
+        scrollbarWidth: getComputedStyle(tags).scrollbarWidth,
+        addLeft: add.left, addRight: add.right, overviewRight: overview.right, innerWidth,
+        barHeight: document.querySelector('.bar').getBoundingClientRect().height
+      };
+    });
+    const start = await strip();
+    assert.strictEqual(start.count, manyTags.length + 1, 'Overflow fixture must render every tag in the single-line strip');
+    assert(start.scrollWidth > start.clientWidth, 'Fixture must overflow the tag strip');
+    assert.strictEqual(start.scrollbarWidth, 'thin', 'Tag strip must expose a thin hover scrollbar instead of arrows');
+    assert(start.addRight <= start.innerWidth && start.addLeft >= 0, 'New-tag button must stay inside the viewport when tags overflow');
+    assert(start.overviewRight <= start.innerWidth, 'Tag overview button must stay inside the viewport when tags overflow');
+    await page.screenshot({ path: path.join(output, 'tags-overflow-800.png') });
+    await page.locator('#tagAdd').click();
+    await page.locator('#tagInput').waitFor();
+    assert(await page.locator('#tagInput').evaluate(el => el.getBoundingClientRect().right <= innerWidth), 'New-tag editor must be reachable and visible');
+    await page.locator('#tagInput').press('Escape');
+    await page.locator('#tags').hover();
+    await page.mouse.wheel(0, 200);
+    await page.waitForTimeout(300);
+    const wheeled = await strip();
+    assert(wheeled.scrollLeft > 0, 'Vertical wheel over the tag strip must scroll it horizontally');
+    await page.evaluate(() => { const tags = document.getElementById('tags'); tags.scrollLeft = tags.scrollWidth; });
+    await page.waitForTimeout(200);
+    assert(await page.evaluate(() => {
+      const tags = document.getElementById('tags').getBoundingClientRect();
+      const last = [...document.querySelectorAll('#tags .tag')].at(-1).getBoundingClientRect();
+      return last.left >= tags.left - 0.5 && last.right <= tags.right + 0.5;
+    }), 'The last tag must be fully visible after scrolling to the end');
+    await page.screenshot({ path: path.join(output, 'tags-overflow-end-800.png') });
+    await page.locator('#tagOverview').click();
+    await page.locator('.tag-grid').waitFor();
+    const grid = () => page.evaluate(() => {
+      const box = document.querySelector('.tag-overview').getBoundingClientRect();
+      const cells = [...document.querySelectorAll('.tag-grid .tag')];
+      const scroller = document.querySelector('.tag-grid');
+      const last = cells.at(-1).getBoundingClientRect();
+      return {
+        cells: cells.length, lastGroup: cells.at(-1).dataset.group,
+        fits: box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight,
+        scrolls: scroller.scrollHeight > scroller.clientHeight,
+        lastVisible: last.left >= scroller.getBoundingClientRect().left - 0.5 && last.right <= scroller.getBoundingClientRect().right + 0.5
+      };
+    });
+    const opened = await grid();
+    assert.strictEqual(opened.cells, manyTags.length + 1, 'Tag overview must list every tag plus 全部');
+    assert(opened.fits, 'Tag overview popover must stay inside the viewport');
+    await page.waitForTimeout(600);
+    // 整页截图会把浮层和列表分层合成错序（仅截图问题），用裁剪截图记录真实现象。
+    await page.screenshot({ path: path.join(output, 'tags-overview-800.png'), clip: { x: 380, y: 0, width: 420, height: 300 } });
+    assert(opened.scrolls, 'Tag overview grid must scroll when there are many tags');
+    await page.locator('.tag-grid').evaluate(el => { el.scrollTop = el.scrollHeight; });
+    await page.waitForTimeout(200);
+    assert((await grid()).lastVisible, 'Scrolling the tag overview grid must reveal the last tag');
+    await page.locator('.tag-grid .tag').last().click();
+    await page.waitForTimeout(300);
+    assert.strictEqual(await page.locator('#tags .tag.on').getAttribute('data-group'), opened.lastGroup, 'A tag picked in the overview must become the filter');
+    assert.strictEqual(await page.locator('.ant-popover:not(.ant-popover-hidden) .tag-grid').count(), 0, 'Picking a tag must close the overview');
+    assert.strictEqual((await strip()).barHeight, 53, 'Tag strip must stay a single 53px bar');
+    await page.locator('#tagOverview').click();
+    await page.locator('.tag-grid').waitFor();
+    await key(27);
+    await page.waitForTimeout(300);
+    assert.strictEqual(await page.locator('.ant-popover:not(.ant-popover-hidden) .tag-grid').count(), 0, 'Escape must close the tag overview');
+    await page.locator('#tagOverview').click();
+    await page.locator('.tag-grid').waitFor();
+    await search('');
+    await page.waitForTimeout(300);
+    assert.strictEqual(await page.locator('.ant-popover:not(.ant-popover-hidden) .tag-grid').count(), 0, 'Typing must close the tag overview');
+    await page.locator('#tagOverview').click();
+    await page.locator('.tag-grid').waitFor();
+    await page.locator('.tag-grid .tag').nth(1).click({ button: 'right' });
+    await menuClick('重命名标签');
+    await page.locator('#tagInput').waitFor();
+    assert.strictEqual(await page.locator('.ant-popover:not(.ant-popover-hidden) .tag-grid').count(), 0, 'Renaming a tag from the overview must close it');
+    await page.locator('#tagInput').press('Escape');
+    await page.waitForTimeout(300);
+    assert.strictEqual(await page.locator('#tagInput').count(), 0);
+    assert.strictEqual(await page.locator('.ant-popover:not(.ant-popover-hidden) .tag-grid').count(), 0, 'Overview must stay closed after cancelling the editor');
+    await page.locator('#tags .tag[data-group=""]').click();
     await page.evaluate(() => {
       window.saved = Array.from({ length: 760 }, (_, i) => ({ id: `r${i}`, command: `cmd-${i}`, time: i, kind: 'command', groups: i < 260 ? ['保留'] : [] }));
       window.ready();

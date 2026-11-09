@@ -38,6 +38,7 @@ The Rubick search box is the only command input. The list contains recently laun
 | `Down` / `Up` | Move selection between the input row and matching history |
 | Click a history row | Launch that entry directly |
 | Click a tag above the list | Filter by tag; text search and tag filtering can be combined |
+| Too many tags above the list | The bar stays a single line: scroll it with the mouse wheel or the scrollbar that appears on hover; the tag overview button opens a grid of every tag |
 | Click `+` above the list | Create an empty tag |
 | Right-click a history row | Open tag management; copy or delete the entry |
 | Right-click a tag above the list | Rename or delete the tag |
